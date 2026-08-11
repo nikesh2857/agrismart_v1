@@ -133,8 +133,16 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
     }
   };
 
+  const [contactPhone, setContactPhone] = useState(user.phone || '');
+  const [deliveryAddress, setDeliveryAddress] = useState((user as any).place || '');
+
   const handleCheckout = async () => {
     if (cartItems.length === 0) return;
+    if (!contactPhone.trim() || !deliveryAddress.trim()) {
+      alert("Please enter your Phone Number and Delivery Place / Location before proceeding.");
+      return;
+    }
+
     try {
       setCheckingOut(true);
       
@@ -146,7 +154,9 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
 
       await apiClient.post('/api/orders', {
         items: orderItems,
-        totalAmount: total
+        totalAmount: total,
+        contactPhone,
+        deliveryAddress
       });
 
       setSuccess(true);
@@ -248,6 +258,33 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
                 <span className="font-bold text-xl text-green-700">₹{total.toFixed(2)}</span>
               </div>
             </div>
+
+            <div className="space-y-3 mb-6 pt-4 border-t border-slate-100">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Contact & Delivery Details</h4>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Phone Number*</label>
+                <input 
+                  type="tel" 
+                  value={contactPhone}
+                  onChange={e => setContactPhone(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none text-slate-700 font-medium"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Delivery Place / Location*</label>
+                <input 
+                  type="text" 
+                  value={deliveryAddress}
+                  onChange={e => setDeliveryAddress(e.target.value)}
+                  placeholder="e.g. Guntur, Andhra Pradesh"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none text-slate-700 font-medium"
+                  required
+                />
+              </div>
+            </div>
+
             <button 
               onClick={handleCheckout}
               disabled={checkingOut}

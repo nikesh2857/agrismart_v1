@@ -13,6 +13,7 @@ export function UserProfile({ user, onUpdateUser }: UserProfileProps) {
   const [name, setName] = useState(user.name);
   const [avatar, setAvatar] = useState(user.avatar);
   const [phone, setPhone] = useState(user.phone || '');
+  const [place, setPlace] = useState((user as any).place || '');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -53,15 +54,17 @@ export function UserProfile({ user, onUpdateUser }: UserProfileProps) {
       const data = await apiClient.patch('/api/auth/profile', {
         name,
         avatarUrl: avatar,
-        phone
+        phone,
+        place
       });
 
       if (data.user) {
         onUpdateUser({
           name: data.user.name,
           avatar: data.user.avatarUrl || '',
-          phone: data.user.phone || ''
-        });
+          phone: data.user.phone || '',
+          place: data.user.place || ''
+        } as any);
         setSuccess('Profile updated successfully!');
         setIsEditing(false);
       }
@@ -138,6 +141,18 @@ export function UserProfile({ user, onUpdateUser }: UserProfileProps) {
               />
             </div>
 
+            <div>
+              <label htmlFor="place-input" className="block text-xs font-semibold text-slate-500 mb-1">Place / Location</label>
+              <input
+                id="place-input"
+                type="text"
+                value={place}
+                onChange={(e) => setPlace(e.target.value)}
+                placeholder="e.g. Guntur, Andhra Pradesh"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all text-slate-700"
+              />
+            </div>
+
             {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}
 
             <div className="flex gap-3 pt-4">
@@ -147,6 +162,7 @@ export function UserProfile({ user, onUpdateUser }: UserProfileProps) {
                   setName(user.name);
                   setAvatar(user.avatar);
                   setPhone(user.phone || '');
+                  setPlace((user as any).place || '');
                   setIsEditing(false);
                   setError('');
                 }}
@@ -178,7 +194,7 @@ export function UserProfile({ user, onUpdateUser }: UserProfileProps) {
                 <Mail className="w-5 h-5 text-slate-400 shrink-0" />
                 <div>
                   <p className="text-xs font-medium text-slate-500">Email Address</p>
-                  <p className="text-sm font-semibold text-slate-700">{user.name.toLowerCase().replace(/\s+/g, '.')}@example.com</p>
+                  <p className="text-sm font-semibold text-slate-700">{user.email || 'Email not provided'}</p>
                 </div>
               </div>
               
@@ -189,12 +205,12 @@ export function UserProfile({ user, onUpdateUser }: UserProfileProps) {
                   <p className="text-sm font-semibold text-slate-700">{user.phone || 'Not provided'}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <CalendarDays className="w-5 h-5 text-slate-400 shrink-0" />
                 <div>
-                  <p className="text-xs font-medium text-slate-500">Member Since</p>
-                  <p className="text-sm font-semibold text-slate-700">March 2023</p>
+                  <p className="text-xs font-medium text-slate-500">Place / Location</p>
+                  <p className="text-sm font-semibold text-slate-700">{(user as any).place || 'Not specified'}</p>
                 </div>
               </div>
             </div>

@@ -61,6 +61,7 @@ model User {
   email       String   @unique
   name        String?
   phone       String?
+  place       String?
   role        Role     @default(FARMER)
   avatarUrl   String?
   createdAt   DateTime @default(now())
@@ -176,12 +177,14 @@ model Product {
 }
 
 model Order {
-  id          String      @id @default(uuid())
-  buyerId     String
-  totalAmount Decimal     @db.Decimal(10, 2)
-  status      OrderStatus @default(PENDING)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id              String      @id @default(uuid())
+  buyerId         String
+  totalAmount     Decimal     @db.Decimal(10, 2)
+  status          OrderStatus @default(PENDING)
+  deliveryAddress String?
+  contactPhone    String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   buyer User        @relation("BuyerOrders", fields: [buyerId], references: [id])
   items OrderItem[]

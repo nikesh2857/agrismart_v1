@@ -75,7 +75,7 @@ router.post('/phone', async (req, res) => {
  *       - bearerAuth: []
  */
 router.patch('/profile', requireAuth, async (req, res) => {
-  const { name, avatarUrl, phone } = req.body;
+  const { name, avatarUrl, phone, place } = req.body;
   if (!req.user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -87,6 +87,7 @@ router.patch('/profile', requireAuth, async (req, res) => {
         name: name !== undefined ? name : undefined,
         avatarUrl: avatarUrl !== undefined ? avatarUrl : undefined,
         phone: phone !== undefined ? phone : undefined,
+        place: place !== undefined ? place : undefined,
       },
     });
     
@@ -97,7 +98,8 @@ router.patch('/profile', requireAuth, async (req, res) => {
         role: updatedUser.role,
         avatarUrl: updatedUser.avatarUrl,
         email: updatedUser.email,
-        phone: updatedUser.phone
+        phone: updatedUser.phone,
+        place: updatedUser.place
       }
     });
   } catch (err: any) {

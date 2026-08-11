@@ -51,8 +51,8 @@ export const deleteProduct = async (req: Request, res: Response, next: NextFunct
 
 export const createOrder = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { items } = createOrderSchema.parse(req.body);
-    const order = await marketplaceService.createOrder(req.user.id, items);
+    const { items, deliveryAddress, contactPhone } = createOrderSchema.parse(req.body);
+    const order = await marketplaceService.createOrder(req.user.id, items, { deliveryAddress, contactPhone });
     res.status(201).json({ order });
   } catch (err) { next(err); }
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Filter, ShoppingCart, Star, Plus, Trash2, ArrowLeft, UploadCloud, Loader2, Phone, Mail, PackageCheck, Clock, UserCheck, ShoppingBag } from 'lucide-react';
+import { Search, Filter, ShoppingCart, Star, Plus, Trash2, ArrowLeft, UploadCloud, Loader2, Phone, Mail, PackageCheck, Clock, UserCheck, ShoppingBag, MapPin } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { PageType, User } from '../types';
 import { apiClient } from '../lib/apiClient';
@@ -543,34 +543,59 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
                       {/* Contact Info Box */}
                       <div className="space-y-3">
                         <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400">Direct Shared Contact Information</h5>
-                        <div className="p-4 rounded-2xl bg-green-50/60 border border-green-100 space-y-3 text-sm">
+                        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 text-sm">
                           
                           {/* Buyer Contact Info (Visible to Seller & Admin) */}
                           {order.buyer && (
-                            <div className="space-y-1 pb-3 border-b border-green-200/60">
+                            <div className="space-y-2 pb-3 border-b border-slate-200">
                               <div className="flex items-center gap-2 font-bold text-slate-800 text-xs uppercase tracking-wide">
                                 <UserCheck className="w-4 h-4 text-green-600" />
-                                <span>Customer (Buyer) Contact:</span>
+                                <span>Customer (Buyer) Details:</span>
                               </div>
-                              <p className="font-semibold text-slate-800">{order.buyer.name}</p>
-                              <div className="flex flex-wrap items-center gap-4 text-xs">
-                                {order.buyer.phone ? (
-                                  <a href={`tel:${order.buyer.phone}`} className="flex items-center gap-1 text-green-700 hover:underline font-medium">
-                                    <Phone className="w-3.5 h-3.5 text-green-600" />
-                                    <span>{order.buyer.phone}</span>
-                                  </a>
-                                ) : (
-                                  <span className="text-slate-500 flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-slate-400" /> Phone N/A</span>
-                                )}
+                              <p className="font-bold text-slate-800 text-base">{order.buyer.name || 'Customer'}</p>
+                              
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="text-slate-500 font-medium block">Phone Number:</span>
+                                  {order.contactPhone || order.buyer.phone ? (
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <a href={`tel:${order.contactPhone || order.buyer.phone}`} className="flex items-center gap-1 text-green-700 hover:underline font-bold bg-green-50 px-2 py-1 rounded-md border border-green-200">
+                                        <Phone className="w-3.5 h-3.5 text-green-600" />
+                                        <span>{order.contactPhone || order.buyer.phone}</span>
+                                      </a>
+                                      <a 
+                                        href={`https://wa.me/${(order.contactPhone || order.buyer.phone).replace(/[^0-9]/g, '')}`} 
+                                        target="_blank" 
+                                        rel="noreferrer"
+                                        className="text-emerald-700 font-bold bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md border border-emerald-200"
+                                      >
+                                        WhatsApp
+                                      </a>
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-500 font-medium">Not provided</span>
+                                  )}
+                                </div>
 
-                                {order.buyer.email ? (
-                                  <a href={`mailto:${order.buyer.email}`} className="flex items-center gap-1 text-green-700 hover:underline font-medium">
-                                    <Mail className="w-3.5 h-3.5 text-green-600" />
-                                    <span>{order.buyer.email}</span>
-                                  </a>
-                                ) : (
-                                  <span className="text-slate-500 flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-slate-400" /> Email N/A</span>
-                                )}
+                                <div>
+                                  <span className="text-slate-500 font-medium block">Email Address:</span>
+                                  {order.buyer.email ? (
+                                    <a href={`mailto:${order.buyer.email}`} className="flex items-center gap-1 text-green-700 hover:underline font-bold mt-0.5 bg-green-50 px-2 py-1 rounded-md border border-green-200 w-fit">
+                                      <Mail className="w-3.5 h-3.5 text-green-600" />
+                                      <span className="truncate max-w-[160px]">{order.buyer.email}</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-slate-500 font-medium">Not provided</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="text-xs pt-1">
+                                <span className="text-slate-500 font-medium block">Place / Delivery Address:</span>
+                                <div className="flex items-start gap-1 text-slate-700 font-semibold mt-0.5">
+                                  <MapPin className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                                  <span>{order.deliveryAddress || order.buyer.place || 'Location not specified'}</span>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -580,30 +605,55 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
                             const seller = item.product?.seller;
                             if (!seller) return null;
                             return (
-                              <div key={seller.id || item.id} className="space-y-1">
+                              <div key={seller.id || item.id} className="space-y-2">
                                 <div className="flex items-center gap-2 font-bold text-slate-800 text-xs uppercase tracking-wide">
                                   <UserCheck className="w-4 h-4 text-blue-600" />
-                                  <span>Farmer (Seller) Contact — {item.product?.name}:</span>
+                                  <span>Farmer (Seller) Details — {item.product?.name}:</span>
                                 </div>
-                                <p className="font-semibold text-slate-800">{seller.name}</p>
-                                <div className="flex flex-wrap items-center gap-4 text-xs">
-                                  {seller.phone ? (
-                                    <a href={`tel:${seller.phone}`} className="flex items-center gap-1 text-blue-700 hover:underline font-medium">
-                                      <Phone className="w-3.5 h-3.5 text-blue-600" />
-                                      <span>{seller.phone}</span>
-                                    </a>
-                                  ) : (
-                                    <span className="text-slate-500 flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-slate-400" /> Phone N/A</span>
-                                  )}
+                                <p className="font-bold text-slate-800 text-base">{seller.name || 'Farmer Seller'}</p>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                  <div>
+                                    <span className="text-slate-500 font-medium block">Phone Number:</span>
+                                    {seller.phone ? (
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <a href={`tel:${seller.phone}`} className="flex items-center gap-1 text-blue-700 hover:underline font-bold bg-blue-50 px-2 py-1 rounded-md border border-blue-200">
+                                          <Phone className="w-3.5 h-3.5 text-blue-600" />
+                                          <span>{seller.phone}</span>
+                                        </a>
+                                        <a 
+                                          href={`https://wa.me/${seller.phone.replace(/[^0-9]/g, '')}`} 
+                                          target="_blank" 
+                                          rel="noreferrer"
+                                          className="text-emerald-700 font-bold bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md border border-emerald-200"
+                                        >
+                                          WhatsApp
+                                        </a>
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-500 font-medium">Not provided</span>
+                                    )}
+                                  </div>
 
-                                  {seller.email ? (
-                                    <a href={`mailto:${seller.email}`} className="flex items-center gap-1 text-blue-700 hover:underline font-medium">
-                                      <Mail className="w-3.5 h-3.5 text-blue-600" />
-                                      <span>{seller.email}</span>
-                                    </a>
-                                  ) : (
-                                    <span className="text-slate-500 flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-slate-400" /> Email N/A</span>
-                                  )}
+                                  <div>
+                                    <span className="text-slate-500 font-medium block">Email Address:</span>
+                                    {seller.email ? (
+                                      <a href={`mailto:${seller.email}`} className="flex items-center gap-1 text-blue-700 hover:underline font-bold mt-0.5 bg-blue-50 px-2 py-1 rounded-md border border-blue-200 w-fit">
+                                        <Mail className="w-3.5 h-3.5 text-blue-600" />
+                                        <span className="truncate max-w-[160px]">{seller.email}</span>
+                                      </a>
+                                    ) : (
+                                      <span className="text-slate-500 font-medium">Not provided</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="text-xs pt-1">
+                                  <span className="text-slate-500 font-medium block">Place / Farm Location:</span>
+                                  <div className="flex items-start gap-1 text-slate-700 font-semibold mt-0.5">
+                                    <MapPin className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                                    <span>{seller.place || 'Location not specified'}</span>
+                                  </div>
                                 </div>
                               </div>
                             );

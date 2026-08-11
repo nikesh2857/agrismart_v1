@@ -102,12 +102,24 @@ export const deleteProduct = async (id: string, sellerId: string, role: string) 
 
 export const createOrder = async (
   buyerId: string,
-  items: { productId: string; quantity: number }[]
+  items: { productId: string; quantity: number }[],
+  details?: { deliveryAddress?: string; contactPhone?: string }
 ) => {
   const buyer = await prisma.user.findUnique({
     where: { id: buyerId },
-    select: { id: true, name: true, email: true, phone: true },
+    select: { id: true, name: true, email: true, phone: true, place: true },
   });
+
+  // If buyer supplied contact details, update user profile if missing
+  if (buyer && (details?.contactPhone || details?.deliveryAddress)) {
+    await prisma.user.update({
+      where: { id: buyerId },
+      data: {
+        ...(details.contactPhone && !buyer.phone && { phone: details.contactPhone }),
+        ...(details.deliveryAddress && !buyer.place && { place: details.deliveryAddress }),
+      },
+    });
+  }
 
   const order = await prisma.$transaction(async (tx) => {
     let totalAmount = new Prisma.Decimal(0);
@@ -139,10 +151,12 @@ export const createOrder = async (
       data: {
         buyerId,
         totalAmount,
+        deliveryAddress: details?.deliveryAddress || buyer?.place || undefined,
+        contactPhone: details?.contactPhone || buyer?.phone || undefined,
         items: { create: orderItemsData },
       },
       include: {
-        buyer: { select: { id: true, name: true, email: true, phone: true } },
+        buyer: { select: { id: true, name: true, email: true, phone: true, place: true } },
         items: {
           include: {
             product: {
@@ -150,7 +164,7 @@ export const createOrder = async (
                 id: true,
                 name: true,
                 price: true,
-                seller: { select: { id: true, name: true, email: true, phone: true } },
+                seller: { select: { id: true, name: true, email: true, phone: true, place: true } },
               },
             },
           },
@@ -161,8 +175,9 @@ export const createOrder = async (
 
   // Send Contact Info Sharing Notifications
   if (buyer && order && order.items) {
-    const buyerPhone = buyer.phone || 'Phone not provided';
+    const buyerPhone = details?.contactPhone || buyer.phone || 'Phone not provided';
     const buyerEmail = buyer.email || 'Email not provided';
+    const buyerPlace = details?.deliveryAddress || buyer.place || 'Location not specified';
 
     for (const item of order.items) {
       const product = item.product;
@@ -171,19 +186,20 @@ export const createOrder = async (
       if (seller) {
         const sellerPhone = seller.phone || 'Phone not provided';
         const sellerEmail = seller.email || 'Email not provided';
+        const sellerPlace = seller.place || 'Location not specified';
 
         // 1. Send Seller (Farmer) Notification with Customer's Contact Info
         await sendNotification(
           seller.id,
           '📦 New Order Received!',
-          `Customer "${buyer.name}" placed an order for "${product.name}". Customer Contact -> Phone: ${buyerPhone}, Email: ${buyerEmail}`
+          `Customer "${buyer.name || 'Customer'}" bought "${product.name}". Contact -> Phone: ${buyerPhone}, Email: ${buyerEmail}, Place: ${buyerPlace}`
         );
 
         // 2. Send Buyer (Customer) Notification with Seller (Farmer)'s Contact Info
         await sendNotification(
           buyer.id,
           '🎉 Order Confirmed!',
-          `Your order for "${product.name}" is confirmed. Seller (${seller.name}) Contact -> Phone: ${sellerPhone}, Email: ${sellerEmail}`
+          `Order for "${product.name}" confirmed. Farmer (${seller.name || 'Seller'}) Contact -> Phone: ${sellerPhone}, Email: ${sellerEmail}, Place: ${sellerPlace}`
         );
       }
     }
@@ -194,27 +210,21 @@ export const createOrder = async (
 
 export const listOrders = async (userId: string, role: string) => {
   const isUserAdmin = role?.toUpperCase() === 'ADMIN';
-  const isUserFarmer = role?.toUpperCase() === 'FARMER';
 
-  let where: Prisma.OrderWhereInput = {};
-  if (!isUserAdmin) {
-    if (isUserFarmer) {
-      where = {
+  const where: Prisma.OrderWhereInput = isUserAdmin
+    ? {}
+    : {
         OR: [
           { buyerId: userId },
           { items: { some: { product: { sellerId: userId } } } },
         ],
       };
-    } else {
-      where = { buyerId: userId };
-    }
-  }
 
   return prisma.order.findMany({
     where,
     orderBy: { createdAt: 'desc' },
     include: {
-      buyer: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+      buyer: { select: { id: true, name: true, email: true, phone: true, place: true, avatarUrl: true } },
       items: {
         include: {
           product: {
@@ -223,7 +233,7 @@ export const listOrders = async (userId: string, role: string) => {
               name: true,
               imageUrl: true,
               price: true,
-              seller: { select: { id: true, name: true, email: true, phone: true, avatarUrl: true } },
+              seller: { select: { id: true, name: true, email: true, phone: true, place: true, avatarUrl: true } },
             },
           },
         },

@@ -27,4 +27,6 @@ export const createOrderSchema = z.object({
       })
     )
     .min(1, 'Order must contain at least one item'),
+  deliveryAddress: z.string().optional(),
+  contactPhone: z.string().optional(),
 });
