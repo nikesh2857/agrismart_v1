@@ -68,6 +68,10 @@ async function request<T = any>(
     throw new Error(err.error ?? `HTTP ${res.status}`);
   }
 
+  if (res.status === 204) {
+    return {} as T;
+  }
+
   return res.json() as Promise<T>;
 }
 

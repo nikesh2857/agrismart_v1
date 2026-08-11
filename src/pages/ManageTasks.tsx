@@ -59,11 +59,12 @@ export function ManageTasks({ onNavigate, user }: { onNavigate: (page: PageType)
   };
 
   const deleteTask = async (taskId: string) => {
+    setTasks(prev => prev.filter(t => t.id !== taskId));
     try {
       await apiClient.delete(`/api/tasks/${taskId}`);
-      setTasks(prev => prev.filter(t => t.id !== taskId));
     } catch (error) {
       console.error("Error deleting task:", error);
+      fetchTasks();
     }
   };
 

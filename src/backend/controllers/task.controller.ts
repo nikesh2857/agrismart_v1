@@ -45,7 +45,7 @@ export const updateTask = async (req: Request, res: Response, next: NextFunction
 export const deleteTask = async (req: Request, res: Response, next: NextFunction) => {
   try {
     await taskService.deleteTask(req.user!.id, req.params.id);
-    res.status(204).send();
+    res.json({ success: true, id: req.params.id });
   } catch (error) {
     next(error);
   }
