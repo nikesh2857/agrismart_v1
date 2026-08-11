@@ -74,7 +74,7 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
 
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [newProduct, setNewProduct] = useState({
-    name: '', price: '', unit: 'Quintal', stock: ''
+    name: '', price: '', unit: 'Quintal', stock: '', category: 'OTHER'
   });
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,20 +96,24 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
     }
     
     try {
+      const validCategory = ['SEEDS', 'FERTILIZERS', 'PESTICIDES', 'TOOLS', 'MACHINERY', 'OTHER'].includes(newProduct.category)
+        ? newProduct.category
+        : 'OTHER';
+
       await apiClient.post('/api/products', {
         name: newProduct.name,
         price: Number(newProduct.price),
         stock: Number(newProduct.stock),
-        category: 'PRODUCE', // Defaulting to PRODUCE
-        description: 'Quality goods from local farm'
+        category: validCategory,
+        description: `Quality ${newProduct.name} from local farm`
       });
       setIsAddingProduct(false);
-      setNewProduct({ name: '', price: '', unit: 'Quintal', stock: '' });
+      setNewProduct({ name: '', price: '', unit: 'Quintal', stock: '', category: 'OTHER' });
       setNewImagePreview(null);
       loadProducts();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create product:', err);
-      alert('Failed to list product.');
+      alert(err.message || 'Failed to list product.');
     }
   };
 
