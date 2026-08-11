@@ -120,7 +120,9 @@ export const requireRole = (roles: string[]) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    if (!roles.includes(req.user.role)) {
+    const userRoleUpper = req.user.role?.toUpperCase();
+    const allowedRolesUpper = roles.map(r => r.toUpperCase());
+    if (!allowedRolesUpper.includes(userRoleUpper)) {
       return res.status(403).json({ error: `Forbidden: Requires one of [${roles.join(', ')}]` });
     }
     next();

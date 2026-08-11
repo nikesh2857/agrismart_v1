@@ -171,7 +171,7 @@ export const acceptJob = async (jobId: string, workerId: string) => {
 export const completeJob = async (jobId: string, userId: string, role: string) => {
   const job = await prisma.job.findUnique({ where: { id: jobId }, include: { assignments: { where: { status: 'ASSIGNED' } } } });
   if (!job) throw new Error('Job not found');
-  if (role !== 'ADMIN' && job.farmerId !== userId) throw new Error('Forbidden');
+  if (role?.toUpperCase() !== 'ADMIN' && job.farmerId !== userId) throw new Error('Forbidden');
   if (job.status === 'COMPLETED') throw new Error('Already completed');
 
   // Auto-checkout all workers who haven't checked out yet upon job completion
@@ -206,7 +206,7 @@ export const completeJob = async (jobId: string, userId: string, role: string) =
 export const cancelJob = async (jobId: string, userId: string, role: string) => {
   const job = await prisma.job.findUnique({ where: { id: jobId }, include: { assignments: { where: { status: 'ASSIGNED' } } } });
   if (!job) throw new Error('Job not found');
-  if (role !== 'ADMIN' && job.farmerId !== userId) throw new Error('Forbidden');
+  if (role?.toUpperCase() !== 'ADMIN' && job.farmerId !== userId) throw new Error('Forbidden');
 
   const updated = await prisma.job.update({
     where: { id: jobId },

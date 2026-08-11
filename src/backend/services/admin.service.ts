@@ -110,8 +110,15 @@ export const updateUserRole = async (userId: string, role: string) => {
 // ─── Product Management ───────────────────────────────────────────────────────
 
 export const hardDeleteProduct = async (productId: string) => {
-  // Admin-only permanent delete (when soft delete isn't sufficient)
-  return prisma.product.delete({ where: { id: productId } });
+  // Admin-only permanent delete (fallback to soft delete if order items exist)
+  try {
+    return await prisma.product.delete({ where: { id: productId } });
+  } catch (_err) {
+    return await prisma.product.update({
+      where: { id: productId },
+      data: { deletedAt: new Date() },
+    });
+  }
 };
 
 // ─── Recent Activity Feed ──────────────────────────────────────────────────────

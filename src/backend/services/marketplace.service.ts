@@ -71,7 +71,8 @@ export const updateProduct = async (id: string, sellerId: string, role: string, 
 }>) => {
   const product = await prisma.product.findFirst({ where: { id, deletedAt: null } });
   if (!product) throw new Error('Product not found');
-  if (role !== 'ADMIN' && product.sellerId !== sellerId) throw new Error('Forbidden');
+  const isAdmin = role?.toUpperCase() === 'ADMIN';
+  if (!isAdmin && product.sellerId !== sellerId) throw new Error('Forbidden');
 
   return prisma.product.update({
     where: { id },
@@ -89,7 +90,8 @@ export const updateProduct = async (id: string, sellerId: string, role: string, 
 export const deleteProduct = async (id: string, sellerId: string, role: string) => {
   const product = await prisma.product.findFirst({ where: { id, deletedAt: null } });
   if (!product) throw new Error('Product not found');
-  if (role !== 'ADMIN' && product.sellerId !== sellerId) throw new Error('Forbidden');
+  const isAdmin = role?.toUpperCase() === 'ADMIN';
+  if (!isAdmin && product.sellerId !== sellerId) throw new Error('Forbidden');
 
   // Soft delete to preserve order history integrity
   return prisma.product.update({ where: { id }, data: { deletedAt: new Date() } });
@@ -145,7 +147,7 @@ export const createOrder = async (
 };
 
 export const listOrders = async (userId: string, role: string) => {
-  const where = role === 'ADMIN' ? {} : { buyerId: userId };
+  const where = role?.toUpperCase() === 'ADMIN' ? {} : { buyerId: userId };
   return prisma.order.findMany({
     where,
     orderBy: { createdAt: 'desc' },
@@ -158,7 +160,8 @@ export const listOrders = async (userId: string, role: string) => {
 export const updateOrderStatus = async (orderId: string, status: string, userId: string, role: string) => {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) throw new Error('Order not found');
-  if (role !== 'ADMIN' && order.buyerId !== userId) throw new Error('Forbidden');
+  const isAdmin = role?.toUpperCase() === 'ADMIN';
+  if (!isAdmin && order.buyerId !== userId) throw new Error('Forbidden');
 
   return prisma.order.update({ where: { id: orderId }, data: { status: status as any } });
 };

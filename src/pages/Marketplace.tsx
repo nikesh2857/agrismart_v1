@@ -93,6 +93,24 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
     }
   };
 
+  const handleDeleteProduct = async (productId: string, productName: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete "${productName}"?`)) return;
+    try {
+      await apiClient.delete(`/api/products/${encodeURIComponent(productId)}`);
+      setProductList(prev => prev.filter(p => p.id !== productId));
+    } catch (err: any) {
+      console.error('Failed to delete product via standard endpoint, trying admin route:', err);
+      try {
+        await apiClient.delete(`/api/admin/products/${encodeURIComponent(productId)}`);
+        setProductList(prev => prev.filter(p => p.id !== productId));
+      } catch (adminErr: any) {
+        console.error('Failed to delete product via admin endpoint:', adminErr);
+        alert(err.message || adminErr.message || 'Failed to delete product. Please try again.');
+      }
+    }
+  };
+
   if (isAddingProduct) {
     return (
       <div className="space-y-6 pb-20 max-w-3xl mx-auto">
@@ -189,6 +207,8 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
     );
   }
 
+  const isUserAdmin = user?.role?.toLowerCase() === 'admin' || user?.role?.toUpperCase() === 'ADMIN';
+
   return (
     <div className="space-y-6 pb-20">
       {/* Header Tabs */}
@@ -254,67 +274,62 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
 
           {/* Product Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-            {productList.map((product: any) => (
-              <div key={product.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 group relative flex flex-col">
-                <div className="h-48 overflow-hidden relative">
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  
-                  {/* Remove Button for Admin or Seller */}
-                  {(user.role === 'admin' || user.id === product.sellerId) && (
-                    <button 
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        try {
-                          await apiClient.delete(`/api/products/${product.id}`);
-                          setProductList(prev => prev.filter(p => p.id !== product.id));
-                        } catch(err) {
-                          console.error(err);
-                        }
-                      }}
-                      className="absolute top-3 left-3 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-md transition-colors opacity-0 group-hover:opacity-100 z-10"
-                      title="Remove Goods"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+            {productList.map((product: any) => {
+              const canDelete = isUserAdmin || user.id === product.sellerId;
+              return (
+                <div key={product.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 group relative flex flex-col">
+                  <div className="h-48 overflow-hidden relative">
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    
+                    {/* Remove Button for Admin or Seller */}
+                    {canDelete && (
+                      <button 
+                        onClick={(e) => handleDeleteProduct(product.id, product.name, e)}
+                        className="absolute top-3 left-3 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-md transition-colors opacity-90 sm:opacity-0 group-hover:opacity-100 z-10"
+                        title="Remove Goods"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
 
-                  <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-semibold shadow-sm z-10">
-                    <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                    {product.rating}
-                  </div>
-                </div>
-                <div className="p-5 flex flex-col flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-slate-500">By {product.seller?.name || 'Local Farm'}</p>
-                    <div className="flex items-center text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md">
-                      <Star className="w-3.5 h-3.5 fill-current" />
-                      <span className="text-xs font-bold ml-1">{product.rating}</span>
+                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-semibold shadow-sm z-10">
+                      <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                      {product.rating}
                     </div>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-800 mb-1 leading-tight">{product.name}</h3>
-                  <div className="mt-auto">
-                    <div className="flex items-end justify-between mb-4">
-                      <div>
-                        <span className="text-xl font-bold text-green-700">₹{product.price}</span>
-                        <span className="text-xs text-slate-500"> /{product.unit}</span>
+                  <div className="p-5 flex flex-col flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium text-slate-500">By {product.seller?.name || 'Local Farm'}</p>
+                      <div className="flex items-center text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md">
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                        <span className="text-xs font-bold ml-1">{product.rating}</span>
                       </div>
-                      <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-md">Stock: {product.stock}</span>
                     </div>
-                    <button 
-                      onClick={() => toggleCart(product.id.toString())}
-                      className={cn(
-                        "w-full py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2",
-                        cart.includes(product.id.toString()) 
-                          ? "bg-green-100 text-green-700 hover:bg-green-200" 
-                          : "bg-slate-900 text-white hover:bg-slate-800"
-                      )}
-                    >
-                      {cart.includes(product.id.toString()) ? 'Added to Cart' : 'Add to Cart'}
-                    </button>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1 leading-tight">{product.name}</h3>
+                    <div className="mt-auto">
+                      <div className="flex items-end justify-between mb-4">
+                        <div>
+                          <span className="text-xl font-bold text-green-700">₹{product.price}</span>
+                          <span className="text-xs text-slate-500"> /{product.unit}</span>
+                        </div>
+                        <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-md">Stock: {product.stock}</span>
+                      </div>
+                      <button 
+                        onClick={() => toggleCart(product.id.toString())}
+                        className={cn(
+                          "w-full py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2",
+                          cart.includes(product.id.toString()) 
+                            ? "bg-green-100 text-green-700 hover:bg-green-200" 
+                            : "bg-slate-900 text-white hover:bg-slate-800"
+                        )}
+                      >
+                        {cart.includes(product.id.toString()) ? 'Added to Cart' : 'Add to Cart'}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {loading ? (
               <div className="col-span-full py-12 text-center">
                 <Loader2 className="w-8 h-8 animate-spin text-green-600 mx-auto mb-4" />
@@ -349,27 +364,20 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {productList.filter((p: any) => user.role === 'admin' || p.sellerId === user.id).map((product: any) => (
+                {productList.filter((p: any) => isUserAdmin || p.sellerId === user.id).map((product: any) => (
                   <tr key={product.id} className="border-b border-slate-100">
                     <td className="py-4 px-4 font-bold text-slate-800">{product.name}</td>
                     <td className="py-4 text-slate-600">₹{product.price} / {product.unit}</td>
                     <td className="py-4 text-slate-600">{product.stock} {product.unit}</td>
                     <td className="py-4"><span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">Active</span></td>
                     <td className="py-4 flex items-center gap-3">
-                      <button onClick={async () => {
-                          try {
-                            await apiClient.delete(`/api/products/${product.id}`);
-                            setProductList(prev => prev.filter(p => p.id !== product.id));
-                          } catch(err) {
-                            console.error(err);
-                          }
-                        }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Remove Listing">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <button onClick={() => handleDeleteProduct(product.id, product.name)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Remove Listing">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
-                {productList.filter((p: any) => user.role === 'admin' || p.sellerId === user.id).length === 0 && (
+                {productList.filter((p: any) => isUserAdmin || p.sellerId === user.id).length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-slate-500">You haven't listed any products yet.</td>
                   </tr>

@@ -98,7 +98,7 @@ export const createRental = async (
 };
 
 export const listRentals = async (userId: string, role: string) => {
-  const where = role === 'ADMIN' ? {} : { renterId: userId };
+  const where = role?.toUpperCase() === 'ADMIN' ? {} : { renterId: userId };
   return prisma.rental.findMany({
     where,
     orderBy: { createdAt: 'desc' },
@@ -109,7 +109,7 @@ export const listRentals = async (userId: string, role: string) => {
 export const cancelRental = async (rentalId: string, userId: string, role: string) => {
   const rental = await prisma.rental.findUnique({ where: { id: rentalId } });
   if (!rental) throw new Error('Rental not found');
-  if (role !== 'ADMIN' && rental.renterId !== userId) throw new Error('Forbidden');
+  if (role?.toUpperCase() !== 'ADMIN' && rental.renterId !== userId) throw new Error('Forbidden');
   if (rental.status === 'COMPLETED') throw new Error('Cannot cancel a completed rental');
 
   return prisma.rental.update({ where: { id: rentalId }, data: { status: 'CANCELLED' } });
