@@ -50,7 +50,7 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
         ...p,
         unit: 'Quintal', // Mock unit
         rating: 4.5,
-        image: 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600' // Generic crop image fallback
+        image: p.imageUrl || 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600'
       }));
       setProductList(mapped);
     } catch (err) {
@@ -84,8 +84,13 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setNewImagePreview(URL.createObjectURL(e.target.files[0]));
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -105,7 +110,8 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
         price: Number(newProduct.price),
         stock: Number(newProduct.stock),
         category: validCategory,
-        description: `Quality ${newProduct.name} from local farm`
+        description: `Quality ${newProduct.name} from local farm`,
+        imageUrl: newImagePreview || undefined
       });
       setIsAddingProduct(false);
       setNewProduct({ name: '', price: '', unit: 'Quintal', stock: '', category: 'OTHER' });
