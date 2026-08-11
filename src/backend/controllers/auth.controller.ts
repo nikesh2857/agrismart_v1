@@ -3,6 +3,8 @@ import { syncUserSchema } from '../validators/auth.validator';
 import * as authService from '../services/auth.service';
 import { supabaseAdmin } from '../config/supabase';
 
+import prisma from '../config/prisma';
+
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, name, role } = req.body;
@@ -13,14 +15,11 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     const selectedRole = role ? String(role).toUpperCase() : 'FARMER';
     const userName = name || email.split('@')[0];
 
-    // 1. Check if user already exists in Prisma DB
-    const existingDbUser = await authService.syncUser(
-      `temp_check_${email}`,
-      email,
-      userName,
-      '',
-      selectedRole
-    ).catch(() => null);
+    // 1. Check if user already exists in DB
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'An account already exists with this email. Please switch to "Sign In" below to log in.' });
+    }
 
     let uid = '';
 
