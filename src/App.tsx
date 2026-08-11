@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Layout } from './components/layout/Layout';
 import { PageType, User } from './types';
-import { auth } from './lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
 import { supabase } from './lib/supabase';
 
 // Page Imports
@@ -63,16 +61,9 @@ export default function App() {
       return;
     }
 
-    let unsubscribeFirebase: (() => void) | null = null;
-
-    // Check for Supabase session first and subscribe to auth state changes
+    // Subscribe to Supabase auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        // We have a Supabase session
-        if (unsubscribeFirebase) {
-          unsubscribeFirebase();
-          unsubscribeFirebase = null;
-        }
         try {
           const idToken = session.access_token;
           const storedRole = localStorage.getItem('selected_role') || 'FARMER';
@@ -84,9 +75,9 @@ export default function App() {
               'Authorization': `Bearer ${idToken}`
             },
             body: JSON.stringify({ role: storedRole.toUpperCase() })
-          });
+          }).catch(() => null);
           
-          if (res.ok) {
+          if (res && res.ok) {
             const data = await res.json();
             setUser({
               id: session.user.id,
@@ -96,7 +87,7 @@ export default function App() {
               phone: data.user.phone || ''
             });
           } else {
-            console.warn("Supabase session sync notice: preserving active user session.");
+            const storedRole = localStorage.getItem('selected_role') || 'farmer';
             setUser({
               id: session.user.id,
               name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
@@ -106,57 +97,19 @@ export default function App() {
             });
           }
         } catch (err) {
-          console.error("Error syncing Supabase session:", err);
+          console.error("Error restoring Supabase session:", err);
           setUser(null);
         } finally {
           setLoading(false);
         }
       } else {
-        // No Supabase session, fallback to Firebase auth
-        if (!unsubscribeFirebase) {
-          unsubscribeFirebase = onAuthStateChanged(auth, async (fbUser) => {
-            if (fbUser) {
-              try {
-                const idToken = await fbUser.getIdToken();
-                const res = await fetch('/api/auth/sync', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`
-                  },
-                  body: JSON.stringify({})
-                });
-                if (res.ok) {
-                  const data = await res.json();
-                  setUser({
-                    id: fbUser.uid,
-                    name: data.user.name || fbUser.displayName || 'User',
-                    role: data.user.role.toLowerCase() as any,
-                    avatar: data.user.avatarUrl || fbUser.photoURL || '',
-                    phone: data.user.phone || ''
-                  });
-                } else {
-                  console.error("Firebase session sync failed");
-                  setUser(null);
-                }
-              } catch (err) {
-                console.error("Error syncing Firebase user:", err);
-                setUser(null);
-              }
-            } else {
-              setUser(null);
-            }
-            setLoading(false);
-          });
-        }
+        setUser(null);
+        setLoading(false);
       }
     });
 
     return () => {
       subscription.unsubscribe();
-      if (unsubscribeFirebase) {
-        unsubscribeFirebase();
-      }
     };
   }, []);
 
@@ -217,16 +170,12 @@ export default function App() {
       localStorage.removeItem('current_page');
       localStorage.removeItem('selected_role');
       try {
-        await auth.signOut();
-      } catch (err) {
-        console.error("Firebase signout failed", err);
-      }
-      try {
         await supabase.auth.signOut();
       } catch (err) {
         console.error("Supabase signout failed", err);
       }
       setUser(null);
+      setCurrentPage('dashboard');
     }}>
       {renderPage()}
     </Layout>

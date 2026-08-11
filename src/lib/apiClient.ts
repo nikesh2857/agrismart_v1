@@ -9,7 +9,6 @@
  *   const { products } = await apiClient.get('/api/products');
  *   await apiClient.post('/api/orders', { items: [...] });
  */
-import { getAuth } from 'firebase/auth';
 import { supabase } from './supabase';
 
 async function getToken(): Promise<string | null> {
@@ -39,10 +38,7 @@ async function getToken(): Promise<string | null> {
     console.error('[apiClient] Error checking Supabase session:', e);
   }
 
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user) return null;
-  return user.getIdToken();
+  return null;
 }
 
 async function request<T = any>(

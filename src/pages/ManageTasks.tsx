@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { PageType, User } from '../types';
-import { auth } from '../lib/firebase';
 import { ArrowLeft, Plus, CheckCircle2, Circle, Clock, Trash2 } from 'lucide-react';
 import { apiClient } from '../lib/apiClient';
 
@@ -73,12 +72,8 @@ export function ManageTasks({ onNavigate, user }: { onNavigate: (page: PageType)
     if (completedTasks.length === 0) return;
     
     try {
-      const token = await auth.currentUser?.getIdToken();
       for (const task of completedTasks) {
-        await fetch(`/api/tasks/${task.id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        await apiClient.delete(`/api/tasks/${task.id}`);
       }
       fetchTasks();
     } catch (error) {

@@ -6,7 +6,6 @@ import { PageType, User } from '../../types';
 import { Bell, User as UserIcon, Search, LogOut, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNotifications } from '../../hooks/useNotifications';
-import { auth } from '../../lib/firebase';
 
 declare global {
   interface Window {
@@ -24,7 +23,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children, currentPage, setCurrentPage, user, onLogout }: LayoutProps) {
-  const { notifications, unreadCount, markRead, markAllRead } = useNotifications(auth.currentUser);
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications(user);
   const [showNotifications, setShowNotifications] = useState(false);
 
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, CalendarDays, IndianRupee, Map, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { PageType } from '../types';
-import { auth } from '../lib/firebase';
+import { apiClient } from '../lib/apiClient';
 
 interface FinData {
   month: string;
@@ -32,16 +32,8 @@ export function ERP({ onNavigate }: { onNavigate: (page: PageType) => void }) {
   useEffect(() => {
     async function fetchData() {
       try {
-        const token = await auth.currentUser?.getIdToken();
-        const res = await fetch('/api/erp/dashboard', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          const json = await res.json();
-          setData(json);
-        }
+        const json = await apiClient.get<ERPDashboardData>('/api/erp/dashboard');
+        setData(json);
       } catch (err) {
         console.error('Failed to fetch ERP data:', err);
       } finally {

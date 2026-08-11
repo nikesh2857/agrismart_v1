@@ -9,7 +9,7 @@
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { User } from 'firebase/auth';
+import { apiClient } from '../lib/apiClient';
 
 export interface AppNotification {
   id: string;
@@ -27,28 +27,23 @@ interface UseNotificationsReturn {
   markAllRead: () => Promise<void>;
 }
 
-export function useNotifications(firebaseUser: User | null): UseNotificationsReturn {
+export function useNotifications(user: { id: string } | null): UseNotificationsReturn {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [connected, setConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
   // Fetch existing notifications from REST API on mount
-  const fetchNotifications = useCallback(async (token: string) => {
+  const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch('/api/notifications', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications ?? []);
-      }
+      const data = await apiClient.get('/api/notifications');
+      setNotifications(data.notifications ?? []);
     } catch (err) {
       console.warn('[Notifications] Failed to fetch existing notifications:', err);
     }
   }, []);
 
   useEffect(() => {
-    if (!firebaseUser) {
+    if (!user) {
       // Disconnect and clear state when user logs out
       socketRef.current?.disconnect();
       socketRef.current = null;
@@ -61,16 +56,10 @@ export function useNotifications(firebaseUser: User | null): UseNotificationsRet
 
     const connect = async () => {
       try {
-        const token = await firebaseUser.getIdToken();
-
-        // Fetch existing notifications first
-        await fetchNotifications(token);
-
+        await fetchNotifications();
         if (!isMounted) return;
 
-        // Connect Socket.IO with auth token
         const socket = io('/', {
-          auth: { token },
           transports: ['websocket', 'polling'],
           reconnectionAttempts: 5,
           reconnectionDelay: 2000,
@@ -80,14 +69,12 @@ export function useNotifications(firebaseUser: User | null): UseNotificationsRet
 
         socket.on('connect', () => {
           if (isMounted) setConnected(true);
-          console.log('[Socket.IO] Connected:', socket.id);
         });
 
         socket.on('disconnect', () => {
           if (isMounted) setConnected(false);
         });
 
-        // Real-time notification event from server
         socket.on('notification', (notification: AppNotification) => {
           if (isMounted) {
             setNotifications((prev) => [notification, ...prev]);
@@ -105,38 +92,29 @@ export function useNotifications(firebaseUser: User | null): UseNotificationsRet
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, [firebaseUser, fetchNotifications]);
+  }, [user, fetchNotifications]);
 
   const markRead = useCallback(async (ids: string[]) => {
-    if (!firebaseUser) return;
+    if (!user) return;
     try {
-      const token = await firebaseUser.getIdToken();
-      await fetch('/api/notifications/read', {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
-      });
+      await apiClient.patch('/api/notifications/read', { ids });
       setNotifications((prev) =>
         prev.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n))
       );
     } catch (err) {
       console.error('[Notifications] markRead failed:', err);
     }
-  }, [firebaseUser]);
+  }, [user]);
 
   const markAllRead = useCallback(async () => {
-    if (!firebaseUser) return;
+    if (!user) return;
     try {
-      const token = await firebaseUser.getIdToken();
-      await fetch('/api/notifications/read-all', {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiClient.patch('/api/notifications/read-all');
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch (err) {
       console.error('[Notifications] markAllRead failed:', err);
     }
-  }, [firebaseUser]);
+  }, [user]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

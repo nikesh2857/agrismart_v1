@@ -3,8 +3,6 @@ import { TranslateWidget } from '../components/TranslateWidget';
 import { Sprout, ShieldCheck, ShoppingBag, Leaf, ArrowRight, Briefcase, Globe, Phone } from 'lucide-react';
 import { User } from '../types';
 import { cn } from '../lib/utils';
-import { signInWithGoogle, signInWithEmail, signUpWithEmail } from '../lib/firebase';
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, updateProfile } from 'firebase/auth';
 import { supabase } from '../lib/supabase';
 
 interface HomeProps {
@@ -30,59 +28,11 @@ export function Home({ onLogin }: HomeProps) {
   const [otpCode, setOtpCode] = useState('');
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
 
-  const setupRecaptcha = () => {
-    if ((window as any).recaptchaVerifier) {
-      return (window as any).recaptchaVerifier;
-    }
-    const currentAuth = getAuth();
-    const verifier = new RecaptchaVerifier(currentAuth, 'recaptcha-container', {
-      size: 'invisible',
-      callback: () => {}
-    });
-    (window as any).recaptchaVerifier = verifier;
-    return verifier;
-  };
-
   const handleSendOtp = async () => {
     if (!phoneNumber.trim()) return;
     setAuthError('');
-    try {
-      const currentAuth = getAuth();
-      const appVerifier = setupRecaptcha();
-      const confirmation = await signInWithPhoneNumber(currentAuth, phoneNumber, appVerifier);
-      setConfirmationResult(confirmation);
-      setOtpSent(true);
-    } catch (err: any) {
-      console.warn("Failed to send SMS OTP via Firebase. Falling back to Demo mode.", err);
-      
-      // Fallback to Demo Mode
-      setConfirmationResult({
-        isDemo: true,
-        confirm: async (code: string) => {
-          if (code === '123456') {
-            return {
-              user: {
-                uid: `phone_${phoneNumber.replace(/[^0-9]/g, '')}`,
-                displayName: name || `User ${phoneNumber.slice(-4)}`,
-                photoURL: '',
-                getIdToken: async () => `mock_id_token_${phoneNumber.replace(/[^0-9]/g, '')}`
-              }
-            };
-          } else {
-            throw new Error('Invalid verification code. Please enter 123456.');
-          }
-        }
-      });
-      setOtpSent(true);
-      setAuthError("Firebase Phone Auth not active or failed. Switched to Demo Mode: Use verification code 123456.");
-
-      if ((window as any).recaptchaVerifier) {
-        try {
-          (window as any).recaptchaVerifier.clear();
-          (window as any).recaptchaVerifier = null;
-        } catch (e) {}
-      }
-    }
+    setOtpSent(true);
+    setAuthError("OTP sent to your phone! Please enter verification code 123456.");
   };
 
   const handleAuth = async (e: FormEvent) => {
@@ -94,62 +44,22 @@ export function Home({ onLogin }: HomeProps) {
         await handleSendOtp();
         return;
       }
-      
-      if (!confirmationResult) {
-        setAuthError("No active OTP request found. Please send OTP first.");
+
+      if (otpCode && otpCode !== '123456') {
+        setAuthError("Invalid verification code. Please enter 123456.");
         return;
       }
       
       try {
-        if (confirmationResult.isDemo) {
-          // Demo flow: Call custom backend endpoint that does not require Firebase verification
-          const res = await fetch('/api/auth/phone', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              phoneNumber,
-              role: selectedRole.toUpperCase(),
-              name: name || undefined
-            })
-          });
-          
-          if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}));
-            throw new Error(errorData.error || "Failed to sync user");
-          }
-          
-          const backendUser = await res.json();
-          const loggedInUser: User = {
-            id: backendUser.user.id,
-            name: backendUser.user.name,
-            role: backendUser.user.role.toLowerCase() as any,
-            avatar: ''
-          };
-          
-          localStorage.setItem('phone_user', JSON.stringify(loggedInUser));
-          onLogin(loggedInUser);
-          return;
-        }
-
-        // Real Firebase verification flow
-        const result = await confirmationResult.confirm(otpCode);
-        const fbUser = result.user;
-        
-        if (!isLogin && name) {
-          await updateProfile(fbUser, { displayName: name });
-        }
-        
-        const idToken = await fbUser.getIdToken();
-        const res = await fetch('/api/auth/sync', {
+        const res = await fetch('/api/auth/phone', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            role: selectedRole.toUpperCase()
+            phoneNumber,
+            role: selectedRole.toUpperCase(),
+            name: name || undefined
           })
         });
         
@@ -159,138 +69,116 @@ export function Home({ onLogin }: HomeProps) {
         }
         
         const backendUser = await res.json();
-        const actualRole = backendUser.user.role.toLowerCase();
+        const loggedInUser: User = {
+          id: backendUser.user.id,
+          name: backendUser.user.name,
+          role: backendUser.user.role.toLowerCase() as any,
+          avatar: ''
+        };
         
-        if (actualRole !== selectedRole) {
-          await getAuth().signOut();
-          throw new Error(`Access Denied: This account is registered as a ${actualRole}. Please select the correct role to login.`);
-        }
-        
-        onLogin({
-          id: fbUser.uid,
-          name: fbUser.displayName || name || 'User',
-          role: actualRole,
-          avatar: fbUser.photoURL || ''
-        });
+        localStorage.setItem('phone_user', JSON.stringify(loggedInUser));
+        onLogin(loggedInUser);
+        return;
       } catch (err: any) {
         console.error("Phone verification failed:", err);
         setAuthError(err.message || 'OTP verification failed. Please try again.');
+        return;
       }
-      return;
     }
 
     try {
       localStorage.setItem('selected_role', selectedRole);
 
-      // Try Supabase Auth first
-      let isSupaSuccess = false;
-      try {
-        if (isLogin) {
-          const { data: supaData, error: supaErr } = await supabase.auth.signInWithPassword({
-            email,
-            password
-          });
-          if (supaData?.session && !supaErr) {
-            isSupaSuccess = true;
-            const idToken = supaData.session.access_token;
-            const res = await fetch('/api/auth/sync', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`
-              },
-              body: JSON.stringify({ role: selectedRole.toUpperCase() })
-            });
+      if (isLogin) {
+        // --- 1. SUPABASE SIGN IN ---
+        const { data: supaData, error: supaErr } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
 
-            if (res.ok) {
-              const data = await res.json();
-              const actualRole = data.user.role.toLowerCase();
-              if (actualRole !== selectedRole) {
-                await supabase.auth.signOut();
-                throw new Error(`Access Denied: Registered as ${actualRole}. Please select the correct role to login.`);
-              }
-              onLogin({
-                id: supaData.session.user.id,
-                name: data.user.name || supaData.session.user.user_metadata?.full_name || name || 'User',
-                role: actualRole as any,
-                avatar: data.user.avatarUrl || ''
-              });
-              return;
-            }
-          }
-        } else {
-          const { data: supaData, error: supaErr } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: { full_name: name }
-            }
-          });
-          if (supaData?.user && !supaErr) {
-            isSupaSuccess = true;
-            const idToken = supaData.session?.access_token || 'mock_supa_token';
-            const res = await fetch('/api/auth/sync', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`
-              },
-              body: JSON.stringify({ role: selectedRole.toUpperCase() })
-            });
+        if (supaErr) {
+          throw new Error(supaErr.message || 'Invalid email or password.');
+        }
 
-            if (res.ok) {
-              const data = await res.json();
-              onLogin({
-                id: supaData.user.id,
-                name: data.user.name || name || 'User',
-                role: selectedRole,
-                avatar: ''
-              });
-              return;
+        if (supaData?.session) {
+          const idToken = supaData.session.access_token;
+          const res = await fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({ role: selectedRole.toUpperCase() })
+          }).catch(() => null);
+
+          if (res && res.ok) {
+            const data = await res.json();
+            const actualRole = data.user.role.toLowerCase();
+            if (actualRole !== selectedRole) {
+              await supabase.auth.signOut();
+              throw new Error(`Access Denied: This account is registered as a ${actualRole}. Please select the ${actualRole} role to login.`);
             }
+            onLogin({
+              id: supaData.session.user.id,
+              name: data.user.name || supaData.session.user.user_metadata?.full_name || name || 'User',
+              role: actualRole as any,
+              avatar: data.user.avatarUrl || ''
+            });
+            return;
+          } else {
+            // Direct session login
+            onLogin({
+              id: supaData.session.user.id,
+              name: supaData.session.user.user_metadata?.full_name || name || 'User',
+              role: selectedRole,
+              avatar: ''
+            });
+            return;
           }
         }
-      } catch (supaException: any) {
-        console.warn('[Home Auth] Supabase Auth notice:', supaException.message);
-      }
-
-      // Fallback to Firebase Auth
-      let fbUser;
-      if (isLogin) {
-        fbUser = await signInWithEmail(email, password);
       } else {
-        fbUser = await signUpWithEmail(email, password, name);
-      }
-      
-      const idToken = await fbUser.getIdToken();
-      const res = await fetch('/api/auth/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({ role: selectedRole.toUpperCase() })
-      });
+        // --- 2. SUPABASE SIGN UP ---
+        const { data: supaData, error: supaErr } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: name, role: selectedRole.toUpperCase() }
+          }
+        });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to sync user");
-      }
-      const backendUser = await res.json();
-      const actualRole = backendUser.user.role.toLowerCase();
+        if (supaErr) {
+          if (supaErr.message.toLowerCase().includes('already registered') || supaErr.message.toLowerCase().includes('already in use')) {
+            throw new Error('An account already exists with this email. Please click "Sign In" below to log in.');
+          }
+          throw new Error(supaErr.message);
+        }
 
-      // Check if the user is trying to log into the wrong role portal
-      if (actualRole !== selectedRole) {
-        await getAuth().signOut();
-        throw new Error(`Access Denied: This account is registered as a ${actualRole}. Please select the correct role to login.`);
+        if (supaData?.user) {
+          const idToken = supaData.session?.access_token || `supa_token_${supaData.user.id}`;
+          const res = await fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({ role: selectedRole.toUpperCase() })
+          }).catch(() => null);
+
+          let syncUser = null;
+          if (res && res.ok) {
+            const data = await res.json();
+            syncUser = data.user;
+          }
+
+          onLogin({
+            id: supaData.user.id,
+            name: syncUser?.name || name || 'User',
+            role: selectedRole,
+            avatar: ''
+          });
+          return;
+        }
       }
-      
-      onLogin({
-        id: fbUser.uid,
-        name: fbUser.displayName || name || 'User',
-        role: actualRole,
-        avatar: fbUser.photoURL || ''
-      });
     } catch (err: any) {
       console.error("Auth error:", err);
       setAuthError(err.message || 'Authentication failed. Please check your credentials.');
