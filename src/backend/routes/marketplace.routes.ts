@@ -130,6 +130,6 @@ router.get('/orders', requireAuth, marketplaceController.listOrders);
  *     summary: Update order status (Admin)
  *     security: [{bearerAuth: []}]
  */
-router.patch('/orders/:id/status', requireAuth, requireRole(['ADMIN']), marketplaceController.updateOrderStatus);
+router.patch('/orders/:id/status', requireAuth, marketplaceController.updateOrderStatus);
 
 export default router;

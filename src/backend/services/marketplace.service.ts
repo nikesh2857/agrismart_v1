@@ -245,7 +245,10 @@ export const listOrders = async (userId: string, role: string) => {
 export const updateOrderStatus = async (orderId: string, status: string, userId: string, role: string) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: { include: { product: { select: { sellerId: true } } } } },
+    include: {
+      buyer: { select: { id: true, name: true, email: true } },
+      items: { include: { product: { select: { id: true, name: true, sellerId: true } } } },
+    },
   });
   if (!order) throw new Error('Order not found');
 
@@ -255,5 +258,45 @@ export const updateOrderStatus = async (orderId: string, status: string, userId:
 
   if (!isAdmin && !isBuyer && !isSeller) throw new Error('Forbidden');
 
-  return prisma.order.update({ where: { id: orderId }, data: { status: status as any } });
+  const targetStatus = status.toUpperCase();
+
+  // If order is cancelled and wasn't previously cancelled, restore stock
+  if (targetStatus === 'CANCELLED' && order.status !== 'CANCELLED') {
+    for (const item of order.items) {
+      if (item.productId && item.quantity > 0) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+    }
+  }
+
+  const updatedOrder = await prisma.order.update({
+    where: { id: orderId },
+    data: { status: targetStatus as any },
+  });
+
+  // Send notifications for order state changes
+  if (targetStatus === 'CANCELLED') {
+    if (order.buyer) {
+      await sendNotification(order.buyer.id, '❌ Order Cancelled', `Order #${orderId.slice(-8)} has been cancelled.`);
+    }
+    for (const item of order.items) {
+      if (item.product?.sellerId) {
+        await sendNotification(item.product.sellerId, '❌ Order Cancelled', `Order #${orderId.slice(-8)} for "${item.product.name}" was cancelled.`);
+      }
+    }
+  } else if (targetStatus === 'DELIVERED' || targetStatus === 'COMPLETED' || targetStatus === 'SUCCESSFUL') {
+    if (order.buyer) {
+      await sendNotification(order.buyer.id, '🎉 Order Completed!', `Order #${orderId.slice(-8)} is marked as Successful / Delivered!`);
+    }
+    for (const item of order.items) {
+      if (item.product?.sellerId) {
+        await sendNotification(item.product.sellerId, '🎉 Order Successful!', `Order #${orderId.slice(-8)} for "${item.product.name}" is marked as Successful!`);
+      }
+    }
+  }
+
+  return updatedOrder;
 };

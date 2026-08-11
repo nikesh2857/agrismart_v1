@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Filter, ShoppingCart, Star, Plus, Minus, Trash2, ArrowLeft, UploadCloud, Loader2, Phone, Mail, PackageCheck, Clock, UserCheck, ShoppingBag, MapPin } from 'lucide-react';
+import { Search, Filter, ShoppingCart, Star, Plus, Minus, Trash2, ArrowLeft, UploadCloud, Loader2, Phone, Mail, PackageCheck, Clock, UserCheck, ShoppingBag, MapPin, XCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { PageType, User } from '../types';
 import { apiClient } from '../lib/apiClient';
@@ -93,6 +93,22 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
       console.error('Failed to load orders:', err);
     } finally {
       setLoadingOrders(false);
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      await apiClient.patch(`/api/orders/${orderId}/status`, { status: newStatus });
+      if (newStatus === 'CANCELLED') {
+        alert('Order has been cancelled successfully. Stock has been restored.');
+      } else {
+        alert('Order marked as Successful / Delivered!');
+      }
+      loadOrders();
+      loadProducts();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to update order status.');
     }
   };
 
@@ -564,17 +580,63 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
                   <div key={order.id} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-800">Order #{order.id.slice(-8)}</span>
-                          <span className="bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase">
-                            {order.status || 'CONFIRMED'}
-                          </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-slate-800 text-base">Order #{order.id.slice(-8)}</span>
+                          
+                          {/* Status Badge */}
+                          {order.status === 'CANCELLED' ? (
+                            <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-red-200">
+                              CANCELLED
+                            </span>
+                          ) : (order.status === 'DELIVERED' || order.status === 'COMPLETED' || order.status === 'SUCCESSFUL') ? (
+                            <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-green-200">
+                              ORDER SUCCESSFUL / DELIVERED
+                            </span>
+                          ) : (
+                            <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-blue-200">
+                              {order.status || 'CONFIRMED'}
+                            </span>
+                          )}
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">{orderDate}</p>
+                        <p className="text-xs text-slate-400 mt-1">{orderDate}</p>
                       </div>
-                      <div className="text-right">
-                        <span className="text-xs text-slate-500">Total Amount</span>
-                        <p className="text-xl font-bold text-green-700">₹{order.totalAmount}</p>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="text-right mr-2">
+                          <span className="text-xs text-slate-500 font-medium block">Total Amount</span>
+                          <p className="text-xl font-bold text-green-700">₹{order.totalAmount}</p>
+                        </div>
+
+                        {/* Order Management Actions */}
+                        {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && order.status !== 'COMPLETED' && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to cancel Order #${order.id.slice(-8)}? Stock will be restored.`)) {
+                                  handleUpdateOrderStatus(order.id, 'CANCELLED');
+                                }
+                              }}
+                              className="px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                              title="Cancel Order"
+                            >
+                              <XCircle className="w-4 h-4 text-red-600" />
+                              <span>Cancel Order</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                if (confirm(`Mark Order #${order.id.slice(-8)} as Successful / Delivered?`)) {
+                                  handleUpdateOrderStatus(order.id, 'DELIVERED');
+                                }
+                              }}
+                              className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                              title="Mark Order Successful"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>Order Successful</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
