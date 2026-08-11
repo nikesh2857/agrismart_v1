@@ -42,6 +42,32 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
     }
   }, [activeTab]);
 
+  const getProductFallbackImage = (name: string, category?: string) => {
+    const n = (name || '').toLowerCase();
+    if (n.includes('mango')) return 'https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('tomato')) return 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('potato')) return 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('onion')) return 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('apple')) return 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('banana')) return 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('wheat')) return 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('rice') || n.includes('paddy')) return 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('corn') || n.includes('maize')) return 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('cotton')) return 'https://images.unsplash.com/photo-1606041008023-472dfb5e530f?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('fertilizer') || n.includes('compost') || n.includes('urea') || n.includes('npk')) return 'https://images.unsplash.com/photo-1628352081506-83c43123ed6d?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('pesticide') || n.includes('chlorpyrifos') || n.includes('neem')) return 'https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('hoe') || n.includes('sprayer') || n.includes('tool')) return 'https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&q=80&w=600';
+    if (n.includes('tractor') || n.includes('tiller') || n.includes('harvester')) return 'https://images.unsplash.com/photo-1530267981600-09880ad635fa?auto=format&fit=crop&q=80&w=600';
+
+    const cat = (category || '').toUpperCase();
+    if (cat === 'SEEDS') return 'https://images.unsplash.com/photo-1530507629858-e4977d30e9e0?auto=format&fit=crop&q=80&w=600';
+    if (cat === 'FERTILIZERS') return 'https://images.unsplash.com/photo-1628352081506-83c43123ed6d?auto=format&fit=crop&q=80&w=600';
+    if (cat === 'PESTICIDES') return 'https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?auto=format&fit=crop&q=80&w=600';
+    if (cat === 'TOOLS' || cat === 'MACHINERY') return 'https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&q=80&w=600';
+
+    return 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&q=80&w=600';
+  };
+
   const loadProducts = async () => {
     try {
       setLoading(true);
@@ -50,7 +76,7 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
         ...p,
         unit: 'Quintal', // Mock unit
         rating: 4.5,
-        image: p.imageUrl || 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600'
+        image: p.imageUrl || getProductFallbackImage(p.name, p.category)
       }));
       setProductList(mapped);
     } catch (err) {
@@ -74,7 +100,7 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
 
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [newProduct, setNewProduct] = useState({
-    name: '', price: '', unit: 'Quintal', stock: '', category: 'OTHER'
+    name: '', price: '', unit: 'Quintal', stock: '', category: 'OTHER', imageUrl: ''
   });
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,16 +131,18 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
         ? newProduct.category
         : 'OTHER';
 
+      const finalImageUrl = newImagePreview || newProduct.imageUrl || undefined;
+
       await apiClient.post('/api/products', {
         name: newProduct.name,
         price: Number(newProduct.price),
         stock: Number(newProduct.stock),
         category: validCategory,
         description: `Quality ${newProduct.name} from local farm`,
-        imageUrl: newImagePreview || undefined
+        imageUrl: finalImageUrl
       });
       setIsAddingProduct(false);
-      setNewProduct({ name: '', price: '', unit: 'Quintal', stock: '', category: 'OTHER' });
+      setNewProduct({ name: '', price: '', unit: 'Quintal', stock: '', category: 'OTHER', imageUrl: '' });
       setNewImagePreview(null);
       loadProducts();
     } catch (err: any) {
@@ -201,26 +229,43 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Goods Image*</label>
-            <input 
-              type="file" 
-              accept="image/*" 
-              className="hidden" 
-              ref={fileInputRef} 
-              onChange={handleImageChange} 
-            />
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className="mt-2 w-full h-48 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors overflow-hidden group relative"
-            >
-              {newImagePreview ? (
-                <img src={newImagePreview} alt="Preview" className="w-full h-full object-cover" />
-              ) : (
-                <div className="flex flex-col items-center text-slate-500 group-hover:text-green-600 transition-colors">
-                  <UploadCloud className="w-8 h-8 mb-2" />
-                  <span className="font-medium">Click to upload image</span>
-                </div>
-              )}
+            <label className="block text-sm font-medium text-slate-700 mb-2">Goods Image (Upload Photo or Paste Image Link)</label>
+            <div className="space-y-3">
+              <input 
+                type="url" 
+                value={newProduct.imageUrl}
+                onChange={e => {
+                  setNewProduct({...newProduct, imageUrl: e.target.value});
+                  if (e.target.value) setNewImagePreview(e.target.value);
+                }}
+                placeholder="Paste image URL (e.g. https://...)"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-slate-700"
+              />
+              <div className="flex items-center gap-3">
+                <div className="h-px bg-slate-200 flex-1"></div>
+                <span className="text-xs text-slate-400 font-medium uppercase">OR</span>
+                <div className="h-px bg-slate-200 flex-1"></div>
+              </div>
+              <input 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                ref={fileInputRef} 
+                onChange={handleImageChange} 
+              />
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full h-40 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors overflow-hidden group relative"
+              >
+                {newImagePreview ? (
+                  <img src={newImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center text-slate-500 group-hover:text-green-600 transition-colors">
+                    <UploadCloud className="w-8 h-8 mb-2" />
+                    <span className="font-medium text-sm">Click to upload photo file</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
