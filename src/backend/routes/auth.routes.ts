@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { sync } from '../controllers/auth.controller';
+import { sync, register } from '../controllers/auth.controller';
 import prisma from '../config/prisma';
 import { requireAuth } from '../middlewares/auth.middleware';
 
@@ -7,9 +7,17 @@ const router = Router();
 
 /**
  * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Register user bypassing SMTP email rate limits
+ */
+router.post('/register', register);
+
+/**
+ * @swagger
  * /api/auth/sync:
  *   post:
- *     summary: Sync Firebase user to database
+ *     summary: Sync user to database
  *     security:
  *       - bearerAuth: []
  */

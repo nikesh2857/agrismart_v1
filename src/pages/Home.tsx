@@ -137,47 +137,36 @@ export function Home({ onLogin }: HomeProps) {
           }
         }
       } else {
-        // --- 2. SUPABASE SIGN UP ---
-        const { data: supaData, error: supaErr } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: name, role: selectedRole.toUpperCase() }
-          }
+        // --- 2. SIGN UP VIA BACKEND REGISTRATION (Bypasses SMTP email rate limits) ---
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password,
+            name,
+            role: selectedRole.toUpperCase()
+          })
         });
 
-        if (supaErr) {
-          if (supaErr.message.toLowerCase().includes('already registered') || supaErr.message.toLowerCase().includes('already in use')) {
-            throw new Error('An account already exists with this email. Please click "Sign In" below to log in.');
-          }
-          throw new Error(supaErr.message);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to register account.');
         }
 
-        if (supaData?.user) {
-          const idToken = supaData.session?.access_token || `supa_token_${supaData.user.id}`;
-          const res = await fetch('/api/auth/sync', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${idToken}`
-            },
-            body: JSON.stringify({ role: selectedRole.toUpperCase() })
-          }).catch(() => null);
+        const data = await res.json();
+        const registeredUser = data.user;
 
-          let syncUser = null;
-          if (res && res.ok) {
-            const data = await res.json();
-            syncUser = data.user;
-          }
+        // Auto sign-in via Supabase client session if available
+        await supabase.auth.signInWithPassword({ email, password }).catch(() => null);
 
-          onLogin({
-            id: supaData.user.id,
-            name: syncUser?.name || name || 'User',
-            role: selectedRole,
-            avatar: ''
-          });
-          return;
-        }
+        onLogin({
+          id: registeredUser.id || registeredUser.firebaseUid,
+          name: registeredUser.name || name || 'User',
+          role: selectedRole,
+          avatar: registeredUser.avatarUrl || ''
+        });
+        return;
       }
     } catch (err: any) {
       console.error("Auth error:", err);
