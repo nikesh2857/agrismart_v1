@@ -89,8 +89,9 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
   const loadOrders = async () => {
     try {
       setLoadingOrders(true);
-      const data = await apiClient.get<any[]>('/api/orders');
-      setOrderList(Array.isArray(data) ? data : []);
+      const data = await apiClient.get<any>('/api/orders');
+      const list = Array.isArray(data) ? data : (data?.orders || []);
+      setOrderList(list);
     } catch (err) {
       console.error('Failed to load orders:', err);
     } finally {
