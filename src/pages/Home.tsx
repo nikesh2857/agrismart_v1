@@ -180,6 +180,81 @@ export function Home({ onLogin }: HomeProps) {
     }
 
     try {
+      localStorage.setItem('selected_role', selectedRole);
+
+      // Try Supabase Auth first
+      let isSupaSuccess = false;
+      try {
+        if (isLogin) {
+          const { data: supaData, error: supaErr } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          if (supaData?.session && !supaErr) {
+            isSupaSuccess = true;
+            const idToken = supaData.session.access_token;
+            const res = await fetch('/api/auth/sync', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`
+              },
+              body: JSON.stringify({ role: selectedRole.toUpperCase() })
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              const actualRole = data.user.role.toLowerCase();
+              if (actualRole !== selectedRole) {
+                await supabase.auth.signOut();
+                throw new Error(`Access Denied: Registered as ${actualRole}. Please select the correct role to login.`);
+              }
+              onLogin({
+                id: supaData.session.user.id,
+                name: data.user.name || supaData.session.user.user_metadata?.full_name || name || 'User',
+                role: actualRole as any,
+                avatar: data.user.avatarUrl || ''
+              });
+              return;
+            }
+          }
+        } else {
+          const { data: supaData, error: supaErr } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { full_name: name }
+            }
+          });
+          if (supaData?.user && !supaErr) {
+            isSupaSuccess = true;
+            const idToken = supaData.session?.access_token || 'mock_supa_token';
+            const res = await fetch('/api/auth/sync', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`
+              },
+              body: JSON.stringify({ role: selectedRole.toUpperCase() })
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              onLogin({
+                id: supaData.user.id,
+                name: data.user.name || name || 'User',
+                role: selectedRole,
+                avatar: ''
+              });
+              return;
+            }
+          }
+        }
+      } catch (supaException: any) {
+        console.warn('[Home Auth] Supabase Auth notice:', supaException.message);
+      }
+
+      // Fallback to Firebase Auth
       let fbUser;
       if (isLogin) {
         fbUser = await signInWithEmail(email, password);
@@ -218,7 +293,7 @@ export function Home({ onLogin }: HomeProps) {
       });
     } catch (err: any) {
       console.error("Auth error:", err);
-      setAuthError(err.message || 'Authentication failed');
+      setAuthError(err.message || 'Authentication failed. Please check your credentials.');
     }
   };
 

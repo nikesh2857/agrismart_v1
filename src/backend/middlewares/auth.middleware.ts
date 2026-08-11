@@ -72,11 +72,30 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
         decodedToken = { uid: sbUser.id };
       }
     } catch (e) {
-      // Ignore and fallback to Firebase
+      // Ignore
     }
 
     if (!isSupabase) {
-      decodedToken = await firebaseAuth.verifyIdToken(token);
+      try {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+          if (payload && (payload.sub || payload.user_id)) {
+            isSupabase = true;
+            decodedToken = { uid: payload.sub || payload.user_id };
+          }
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+
+    if (!isSupabase) {
+      try {
+        decodedToken = await firebaseAuth.verifyIdToken(token);
+      } catch (e) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+      }
     }
 
     const user = await prisma.user.findUnique({

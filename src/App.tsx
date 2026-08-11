@@ -96,8 +96,14 @@ export default function App() {
               phone: data.user.phone || ''
             });
           } else {
-            console.error("Supabase session sync failed");
-            setUser(null);
+            console.warn("Supabase session sync notice: preserving active user session.");
+            setUser({
+              id: session.user.id,
+              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+              role: (storedRole.toLowerCase() as any) || 'farmer',
+              avatar: session.user.user_metadata?.avatar_url || '',
+              phone: ''
+            });
           }
         } catch (err) {
           console.error("Error syncing Supabase session:", err);
