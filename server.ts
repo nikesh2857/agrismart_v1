@@ -431,9 +431,20 @@ async function startServer() {
       ? path.join(process.cwd(), "dist/client")
       : path.join(process.cwd(), "dist");
 
-    app.use(express.static(clientPath));
+    app.use(express.static(clientPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+      }
+    }));
     app.get("*", (req, res, next) => {
       if (req.path.startsWith("/api")) return next();
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.sendFile(path.join(clientPath, "index.html"));
     });
   }
