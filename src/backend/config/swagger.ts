@@ -116,7 +116,15 @@ Authorization: Bearer <firebase_id_token>
       },
     },
   },
-  apis: ['./src/backend/routes/*.ts'],
+  apis: ['./src/backend/routes/*.ts', './src/**/*.ts'],
 };
 
-export const swaggerSpec = swaggerJsdoc(options);
+let spec: any;
+try {
+  spec = swaggerJsdoc(options);
+} catch (e) {
+  console.warn('[Swagger] Spec generation warning, using base definition:', e);
+  spec = options.definition;
+}
+
+export const swaggerSpec = spec;

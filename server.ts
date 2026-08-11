@@ -43,10 +43,12 @@ try {
 }
 
 async function startServer() {
+  const PORT = process.env.PORT || 3000;
+  console.log(`[Server] Starting AgriSmart server on PORT ${PORT} (NODE_ENV: ${process.env.NODE_ENV})...`);
+
   const app = express();
   const server = http.createServer(app);
   const wss = new WebSocketServer({ noServer: true });
-  const PORT = process.env.PORT || 3000;
 
   server.on('upgrade', (request, socket, head) => {
     const pathname = request.url ? request.url.split('?')[0] : '';
