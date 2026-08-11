@@ -3,7 +3,7 @@ import { TranslateWidget } from '../TranslateWidget';
 import { Sidebar } from './Sidebar';
 import { ChatbotFAB } from './ChatbotFAB';
 import { PageType, User } from '../../types';
-import { Bell, User as UserIcon, Search, LogOut, Globe } from 'lucide-react';
+import { Bell, User as UserIcon, Search, LogOut, Globe, ShoppingCart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNotifications } from '../../hooks/useNotifications';
 
@@ -20,13 +20,12 @@ interface LayoutProps {
   setCurrentPage: (page: PageType) => void;
   user: User;
   onLogout: () => void;
+  cart?: string[];
 }
 
-export function Layout({ children, currentPage, setCurrentPage, user, onLogout }: LayoutProps) {
+export function Layout({ children, currentPage, setCurrentPage, user, onLogout, cart = [] }: LayoutProps) {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications(user);
   const [showNotifications, setShowNotifications] = useState(false);
-
-
 
   const pageTitles: Record<PageType, string> = {
     'dashboard': 'Smart Farmer Portal',
@@ -48,6 +47,8 @@ export function Layout({ children, currentPage, setCurrentPage, user, onLogout }
     'book-workers': 'Book Workers',
     'worker-jobs': 'Work Dashboard',
   };
+
+  const totalCartCount = Array.isArray(cart) ? cart.length : 0;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex text-slate-900 font-sans">
@@ -74,14 +75,29 @@ export function Layout({ children, currentPage, setCurrentPage, user, onLogout }
             <div className="flex items-center">
               <TranslateWidget id="google_translate_element" />
             </div>
+
+            {/* Shopping Cart Button */}
+            <button
+              onClick={() => setCurrentPage('cart')}
+              title="Shopping Cart"
+              aria-label="Shopping Cart"
+              className="relative p-2.5 text-slate-600 hover:text-slate-900 transition-colors bg-slate-50 hover:bg-slate-100 rounded-full border border-slate-200"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              {totalCartCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-600 text-white text-xs font-bold rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                  {totalCartCount}
+                </span>
+              )}
+            </button>
             
             <div className="relative">
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 rounded-full hover:bg-slate-100"
+                className="relative p-2.5 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 rounded-full hover:bg-slate-100 border border-slate-200"
               >
                 <Bell className="w-5 h-5" />
-                {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>}
+                {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>}
               </button>
               
               <AnimatePresence>

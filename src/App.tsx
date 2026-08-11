@@ -222,7 +222,7 @@ export default function App() {
   }
 
   return (
-    <Layout currentPage={currentPage} setCurrentPage={setCurrentPage} user={user} onLogout={async () => {
+    <Layout currentPage={currentPage} setCurrentPage={setCurrentPage} user={user} cart={cart} onLogout={async () => {
       localStorage.removeItem('admin_token');
       localStorage.removeItem('phone_user');
       localStorage.removeItem('current_page');
