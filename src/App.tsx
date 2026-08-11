@@ -30,15 +30,26 @@ export default function App() {
     const saved = localStorage.getItem('current_page');
     return (saved as PageType) || 'dashboard';
   });
-  const [cart, setCart] = useState<string[]>([]);
+  const [cart, setCart] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('app_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(true);
 
-  // Sync current page to localStorage
+  // Sync current page and cart to localStorage
   useEffect(() => {
     if (currentPage) {
       localStorage.setItem('current_page', currentPage);
     }
   }, [currentPage]);
+
+  useEffect(() => {
+    localStorage.setItem('app_cart', JSON.stringify(cart));
+  }, [cart]);
 
   // Restore user session on load / auth change
   useEffect(() => {

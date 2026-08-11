@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Trash2, CreditCard, Loader2, CheckCircle2 } from 'lucide-react';
 import { PageType } from '../types';
 import { apiClient } from '../lib/apiClient';
+import organicHoneyImg from '../assets/images/organic_honey_1784352178761.jpg';
+import mahindraTractorImg from '../assets/images/mahindra_tractor_1784304568060.jpg';
 
 interface Product {
   id: string;
@@ -20,6 +22,16 @@ interface CartProps {
   setCart: (cart: string[]) => void;
 }
 
+const staticProducts: Product[] = [
+  { id: 'organic-1', name: 'Certified Organic Turmeric', price: 1200, unit: '10kg', stock: 50, sellerId: 'admin', seller: { name: 'Prakriti Farms' }, image: 'https://images.unsplash.com/photo-1615485925600-97237c4fc1ec?auto=format&fit=crop&w=400&q=80' },
+  { id: 'organic-2', name: 'Pesticide-Free Honey', price: 850, unit: '1kg', stock: 30, sellerId: 'admin', seller: { name: 'WildBee Collective' }, image: organicHoneyImg },
+  { id: 'organic-3', name: 'Heirloom Tomatoes', price: 150, unit: '1kg', stock: 100, sellerId: 'admin', seller: { name: 'Earth Roots' }, image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80' },
+  { id: '1', name: 'Organic Wheat', price: 2100, unit: 'Quintal', stock: 50, sellerId: 'seller-1', seller: { name: 'Kisan Cooperative' }, image: 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600' },
+  { id: '2', name: 'Basmati Rice', price: 4500, unit: 'Quintal', stock: 40, sellerId: 'seller-2', seller: { name: 'Punjab Agro' }, image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&q=80&w=600' },
+  { id: '3', name: 'Hybrid Cotton Seeds', price: 850, unit: 'Packet', stock: 100, sellerId: 'seller-3', seller: { name: 'Desi Seeds Co' }, image: 'https://images.unsplash.com/photo-1605000797499-95a51c5269ae?auto=format&fit=crop&w=400&q=80' },
+  { id: 'seed-equipment-combine-harvest', name: 'Mahindra 575 DI Tractor', price: 1500, unit: 'Day', stock: 5, sellerId: 'equipment', seller: { name: 'AgriRentals' }, image: mahindraTractorImg }
+];
+
 export function Cart({ onNavigate, cart, setCart }: CartProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,13 +41,52 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const data = await apiClient.get<{ products: any[] }>('/api/products');
-        const mapped = data.products.map(p => ({
-          ...p,
-          unit: 'Quintal',
-          image: 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600'
-        }));
-        setProducts(mapped);
+        let allProducts = [...staticProducts];
+        
+        // Include custom organic products from localStorage
+        const savedOrganic = localStorage.getItem('organicProducts');
+        if (savedOrganic) {
+          try {
+            const parsed = JSON.parse(savedOrganic);
+            parsed.forEach((p: any) => {
+              if (!allProducts.some(existing => String(existing.id) === String(p.id))) {
+                allProducts.push({
+                  id: String(p.id),
+                  name: p.name,
+                  price: p.price,
+                  unit: p.unit || '1kg',
+                  stock: 50,
+                  sellerId: p.sellerId || 'admin',
+                  seller: { name: p.farmer || 'Organic Farm' },
+                  image: String(p.id) === 'organic-2' || String(p.id) === '2' ? organicHoneyImg : p.image
+                });
+              }
+            });
+          } catch (e) {}
+        }
+
+        // Fetch DB products from backend
+        try {
+          const data = await apiClient.get<{ products: any[] }>('/api/products');
+          if (data?.products) {
+            data.products.forEach(p => {
+              if (!allProducts.some(existing => String(existing.id) === String(p.id))) {
+                allProducts.push({
+                  id: String(p.id),
+                  name: p.name,
+                  price: p.price,
+                  unit: 'Quintal',
+                  stock: p.stock || 50,
+                  sellerId: p.sellerId || 'seller',
+                  seller: p.seller || { name: 'Local Farmer' },
+                  image: 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600'
+                });
+              }
+            });
+          }
+        } catch (e) {}
+
+        setProducts(allProducts);
       } catch (err) {
         console.error('Failed to load cart products:', err);
       } finally {
@@ -45,7 +96,7 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
     fetchProducts();
   }, []);
 
-  const cartItems = products.filter(p => cart.includes(p.id));
+  const cartItems = products.filter(p => cart.map(String).includes(String(p.id)));
   const subtotal = cartItems.reduce((acc, item) => acc + item.price, 0);
   const tax = subtotal * 0.05;
   const total = subtotal + tax;
