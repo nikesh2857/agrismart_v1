@@ -784,6 +784,50 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
                         </div>
                       </div>
                     </div>
+
+                    {/* Dedicated Order Action Footer Bar */}
+                    {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && order.status !== 'COMPLETED' ? (
+                      <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/80 -mx-6 -mb-6 p-4 rounded-b-3xl">
+                        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                          <PackageCheck className="w-4 h-4 text-green-600" />
+                          Order Actions:
+                        </span>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <button
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to cancel Order #${order.id.slice(-8)}? Product stock will be automatically restored.`)) {
+                                handleUpdateOrderStatus(order.id, 'CANCELLED');
+                              }
+                            }}
+                            className="px-4 py-2.5 bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm"
+                          >
+                            <XCircle className="w-4 h-4 text-red-600" />
+                            Cancel Order
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              if (confirm(`Mark Order #${order.id.slice(-8)} as Successful / Delivered?`)) {
+                                handleUpdateOrderStatus(order.id, 'DELIVERED');
+                              }
+                            }}
+                            className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            Order Successful / Delivered
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="pt-3 border-t border-slate-100 text-xs font-semibold text-slate-500 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50 -mx-6 -mb-6 p-3 rounded-b-3xl">
+                        <span>Current Status: <strong className="uppercase font-bold text-slate-800">{order.status}</strong></span>
+                        {order.status === 'CANCELLED' ? (
+                          <span className="text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-md border border-red-200">❌ Order Cancelled & Stock Restored</span>
+                        ) : (
+                          <span className="text-green-600 font-bold bg-green-50 px-2.5 py-1 rounded-md border border-green-200">🎉 Order Successfully Completed</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
