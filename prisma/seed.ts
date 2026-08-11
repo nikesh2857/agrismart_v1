@@ -59,10 +59,15 @@ async function main() {
 
   for (const p of products) {
     const seedId = `seed-product-${slugify(p.name, 20)}`;
+    const isSoftDeleted = p.name.includes('Chlorpyrifos');
 
     await prisma.product.upsert({
       where: { id: seedId },
-      update: { stock: p.stock, price: p.price },
+      update: {
+        stock: p.stock,
+        price: p.price,
+        deletedAt: isSoftDeleted ? new Date() : null,
+      },
       create: {
         id: seedId,
         sellerId: seller.id,
@@ -71,6 +76,7 @@ async function main() {
         category: p.category,
         price: p.price,
         stock: p.stock,
+        deletedAt: isSoftDeleted ? new Date() : null,
       },
     });
     console.log(`  📦 Product: ${p.name}`);
