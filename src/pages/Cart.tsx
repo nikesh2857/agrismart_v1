@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Trash2, CreditCard, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Trash2, CreditCard, Loader2, CheckCircle2, Plus, Minus } from 'lucide-react';
 import { PageType } from '../types';
 import { apiClient } from '../lib/apiClient';
 import organicHoneyImg from '../assets/images/organic_honey_1784352178761.jpg';
