@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { Layout } from './components/layout/Layout';
 import { PageType, User } from './types';
 import { supabase } from './lib/supabase';
@@ -23,6 +23,53 @@ import { MarketRates } from './pages/MarketRates';
 import { AdminBookings } from './pages/AdminBookings';
 import { BookWorkers } from './pages/BookWorkers';
 import { WorkerJobs } from './pages/WorkerJobs';
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  onReset?: () => void;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class AppErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = { hasError: false };
+
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Uncaught rendering error:", error, errorInfo);
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+          <div className="bg-white rounded-3xl p-8 max-w-md shadow-xl border border-slate-100">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Notice</h2>
+            <p className="text-slate-500 text-sm mb-6">
+              An issue occurred while loading this page. Click below to return to your dashboard.
+            </p>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false });
+                if (this.props.onReset) this.props.onReset();
+              }}
+              className="px-6 py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-colors shadow-sm"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -188,7 +235,9 @@ export default function App() {
       setUser(null);
       setCurrentPage('dashboard');
     }}>
-      {renderPage()}
+      <AppErrorBoundary onReset={() => setCurrentPage('dashboard')}>
+        {renderPage()}
+      </AppErrorBoundary>
     </Layout>
   );
 }

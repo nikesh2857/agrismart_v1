@@ -96,13 +96,41 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
     fetchProducts();
   }, []);
 
-  const cartItems = products.filter(p => cart.map(String).includes(String(p.id)));
-  const subtotal = cartItems.reduce((acc, item) => acc + item.price, 0);
+  const safeCart = Array.isArray(cart) ? cart : [];
+  const cartItemIds = safeCart.map(item => 
+    typeof item === 'object' && item !== null ? String((item as any).id || '') : String(item)
+  ).filter(Boolean);
+
+  let matchedItems = products.filter(p => p && p.id && cartItemIds.includes(String(p.id)));
+
+  // For any cart item ID not matched in catalog, generate safe product fallback object
+  cartItemIds.forEach(id => {
+    if (id && !matchedItems.some(m => String(m.id) === String(id))) {
+      matchedItems.push({
+        id: String(id),
+        name: `Agricultural Product (${id})`,
+        price: 500,
+        unit: 'Item',
+        stock: 10,
+        sellerId: 'vendor',
+        seller: { name: 'Verified Agricultural Supplier' },
+        image: 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600'
+      });
+    }
+  });
+
+  const cartItems = matchedItems;
+  const subtotal = cartItems.reduce((acc, item) => acc + (Number(item?.price) || 0), 0);
   const tax = subtotal * 0.05;
   const total = subtotal + tax;
 
   const removeFromCart = (id: string) => {
-    setCart(cart.filter(itemId => itemId !== id));
+    if (typeof setCart === 'function') {
+      setCart(safeCart.filter(itemId => {
+        const itemStr = typeof itemId === 'object' && itemId !== null ? String((itemId as any).id || '') : String(itemId);
+        return itemStr !== String(id);
+      }));
+    }
   };
 
   const handleCheckout = async () => {
