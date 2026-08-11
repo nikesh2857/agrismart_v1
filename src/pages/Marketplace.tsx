@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Filter, ShoppingCart, Star, Plus, Trash2, ArrowLeft, UploadCloud, Loader2 } from 'lucide-react';
+import { Search, Filter, ShoppingCart, Star, Plus, Trash2, ArrowLeft, UploadCloud, Loader2, Phone, Mail, PackageCheck, Clock, UserCheck, ShoppingBag } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { PageType, User } from '../types';
 import { apiClient } from '../lib/apiClient';
@@ -10,7 +10,7 @@ interface Product {
   price: number;
   stock: number;
   sellerId: string;
-  seller: { name: string };
+  seller: { name: string; email?: string; phone?: string };
   category?: string;
   // UI fields mocked
   unit?: string;
@@ -26,13 +26,21 @@ interface MarketplaceProps {
 }
 
 export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProps) {
-  const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
+  const [activeTab, setActiveTab] = useState<'buy' | 'sell' | 'orders'>('buy');
   const [productList, setProductList] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [orderList, setOrderList] = useState<any[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
 
   useEffect(() => {
     loadProducts();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      loadOrders();
+    }
+  }, [activeTab]);
 
   const loadProducts = async () => {
     try {
@@ -49,6 +57,18 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
       console.error('Failed to load products:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadOrders = async () => {
+    try {
+      setLoadingOrders(true);
+      const data = await apiClient.get<any[]>('/api/orders');
+      setOrderList(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load orders:', err);
+    } finally {
+      setLoadingOrders(false);
     }
   };
 
@@ -212,30 +232,36 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
   return (
     <div className="space-y-6 pb-20">
       {/* Header Tabs */}
-      <div className="flex items-center justify-between">
-        {user.role !== 'buyer' ? (
-          <div className="flex p-1 bg-slate-200 rounded-xl w-fit">
-            <button 
-              onClick={() => setActiveTab('buy')}
-              className={cn("px-6 py-2 rounded-lg text-sm font-medium transition-all", activeTab === 'buy' ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-            >
-              Buyer Dashboard
-            </button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex p-1 bg-slate-200 rounded-xl w-fit">
+          <button 
+            onClick={() => setActiveTab('buy')}
+            className={cn("px-5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2", activeTab === 'buy' ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+          >
+            <ShoppingBag className="w-4 h-4 text-green-600" />
+            Buyer Dashboard
+          </button>
+          {user.role !== 'buyer' && (
             <button 
               onClick={() => setActiveTab('sell')}
-              className={cn("px-6 py-2 rounded-lg text-sm font-medium transition-all", activeTab === 'sell' ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              className={cn("px-5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2", activeTab === 'sell' ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}
             >
               Farmer Dashboard (Sell)
             </button>
-          </div>
-        ) : (
-          <h1 className="text-2xl font-bold text-slate-800">Buyer Dashboard</h1>
-        )}
+          )}
+          <button 
+            onClick={() => setActiveTab('orders')}
+            className={cn("px-5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2", activeTab === 'orders' ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+          >
+            <PackageCheck className="w-4 h-4 text-blue-600" />
+            Orders & Contacts
+          </button>
+        </div>
         
         {activeTab === 'buy' && (
           <button 
             onClick={() => onNavigate?.('cart')}
-            className="relative p-2.5 bg-white text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:bg-slate-50 transition-colors"
+            className="relative p-2.5 bg-white text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:bg-slate-50 transition-colors self-start sm:self-auto"
           >
             <ShoppingCart className="w-5 h-5" />
             {cart.length > 0 && (
@@ -247,7 +273,7 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
         )}
         
         {activeTab === 'sell' && (
-          <button onClick={() => setIsAddingProduct(true)} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl shadow-sm hover:bg-green-700 transition-colors text-sm font-medium">
+          <button onClick={() => setIsAddingProduct(true)} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl shadow-sm hover:bg-green-700 transition-colors text-sm font-medium self-start sm:self-auto">
             <Plus className="w-4 h-4" />
             List New Product
           </button>
@@ -385,6 +411,156 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'orders' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-slate-800">Orders & Contact Exchange</h3>
+              <p className="text-slate-500 text-sm">Direct contact details shared between Customer & Farmer for completed bookings.</p>
+            </div>
+            <button onClick={loadOrders} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-600">
+              <Clock className="w-5 h-5" />
+            </button>
+          </div>
+
+          {loadingOrders ? (
+            <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-slate-100">
+              <Loader2 className="w-8 h-8 animate-spin text-green-600 mx-auto mb-4" />
+              <p className="text-slate-500 font-medium">Loading orders & contact details...</p>
+            </div>
+          ) : orderList.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-slate-100">
+              <PackageCheck className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h4 className="text-lg font-bold text-slate-700 mb-1">No Orders Found</h4>
+              <p className="text-slate-500 text-sm">Orders placed by you or for your listed products will appear here with seller & customer contact information.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {orderList.map((order: any) => {
+                const orderDate = new Date(order.createdAt).toLocaleDateString(undefined, {
+                  year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+
+                return (
+                  <div key={order.id} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800">Order #{order.id.slice(-8)}</span>
+                          <span className="bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase">
+                            {order.status || 'CONFIRMED'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">{orderDate}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs text-slate-500">Total Amount</span>
+                        <p className="text-xl font-bold text-green-700">₹{order.totalAmount}</p>
+                      </div>
+                    </div>
+
+                    {/* Items & Contact Sharing Card */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Products in this order */}
+                      <div className="space-y-3">
+                        <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400">Items Ordered</h5>
+                        {order.items?.map((item: any) => (
+                          <div key={item.id} className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                            <div className="w-12 h-12 rounded-xl bg-slate-200 overflow-hidden shrink-0">
+                              <img 
+                                src={item.product?.imageUrl || 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=200'} 
+                                alt={item.product?.name} 
+                                className="w-full h-full object-cover" 
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h6 className="font-bold text-slate-800 text-sm truncate">{item.product?.name}</h6>
+                              <p className="text-xs text-slate-500">Qty: {item.quantity} x ₹{item.priceAtPurchase || item.product?.price}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Contact Info Box */}
+                      <div className="space-y-3">
+                        <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400">Direct Shared Contact Information</h5>
+                        <div className="p-4 rounded-2xl bg-green-50/60 border border-green-100 space-y-3 text-sm">
+                          
+                          {/* Buyer Contact Info (Visible to Seller & Admin) */}
+                          {order.buyer && (
+                            <div className="space-y-1 pb-3 border-b border-green-200/60">
+                              <div className="flex items-center gap-2 font-bold text-slate-800 text-xs uppercase tracking-wide">
+                                <UserCheck className="w-4 h-4 text-green-600" />
+                                <span>Customer (Buyer) Contact:</span>
+                              </div>
+                              <p className="font-semibold text-slate-800">{order.buyer.name}</p>
+                              <div className="flex flex-wrap items-center gap-4 text-xs">
+                                {order.buyer.phone ? (
+                                  <a href={`tel:${order.buyer.phone}`} className="flex items-center gap-1 text-green-700 hover:underline font-medium">
+                                    <Phone className="w-3.5 h-3.5 text-green-600" />
+                                    <span>{order.buyer.phone}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-500 flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-slate-400" /> Phone N/A</span>
+                                )}
+
+                                {order.buyer.email ? (
+                                  <a href={`mailto:${order.buyer.email}`} className="flex items-center gap-1 text-green-700 hover:underline font-medium">
+                                    <Mail className="w-3.5 h-3.5 text-green-600" />
+                                    <span>{order.buyer.email}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-500 flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-slate-400" /> Email N/A</span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Seller / Farmer Contact Info */}
+                          {order.items?.map((item: any) => {
+                            const seller = item.product?.seller;
+                            if (!seller) return null;
+                            return (
+                              <div key={seller.id || item.id} className="space-y-1">
+                                <div className="flex items-center gap-2 font-bold text-slate-800 text-xs uppercase tracking-wide">
+                                  <UserCheck className="w-4 h-4 text-blue-600" />
+                                  <span>Farmer (Seller) Contact — {item.product?.name}:</span>
+                                </div>
+                                <p className="font-semibold text-slate-800">{seller.name}</p>
+                                <div className="flex flex-wrap items-center gap-4 text-xs">
+                                  {seller.phone ? (
+                                    <a href={`tel:${seller.phone}`} className="flex items-center gap-1 text-blue-700 hover:underline font-medium">
+                                      <Phone className="w-3.5 h-3.5 text-blue-600" />
+                                      <span>{seller.phone}</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-slate-500 flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-slate-400" /> Phone N/A</span>
+                                  )}
+
+                                  {seller.email ? (
+                                    <a href={`mailto:${seller.email}`} className="flex items-center gap-1 text-blue-700 hover:underline font-medium">
+                                      <Mail className="w-3.5 h-3.5 text-blue-600" />
+                                      <span>{seller.email}</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-slate-500 flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-slate-400" /> Email N/A</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
