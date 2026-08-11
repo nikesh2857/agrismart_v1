@@ -160,7 +160,7 @@ export default function App() {
       case 'marketplace': return <Marketplace onNavigate={setCurrentPage} cart={cart} setCart={setCart} user={user!} />;
       case 'erp': return <PlotMap />;
       case 'disease': return <Disease />;
-      case 'organic': return <OrganicMarket user={user!} />;
+      case 'organic': return <OrganicMarket user={user!} onNavigate={setCurrentPage} cart={cart} setCart={setCart} />;
       case 'fertilizer': return <Fertilizer />;
       case 'seed': return <Seed />;
       case 'schemes': return <Schemes />;

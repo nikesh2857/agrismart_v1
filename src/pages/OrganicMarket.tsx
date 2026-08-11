@@ -1,22 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShieldCheck, MapPin, Star, Plus, Trash2, ArrowLeft, UploadCloud } from 'lucide-react';
+import { ShieldCheck, MapPin, Star, Plus, Trash2, ArrowLeft, UploadCloud, ShoppingCart } from 'lucide-react';
 import organicHoneyImg from '../assets/images/organic_honey_1784352178761.jpg';
-import { User } from '../types';
+import { PageType, User } from '../types';
+
+interface OrganicMarketProps {
+  user?: User;
+  onNavigate?: (page: PageType) => void;
+  cart?: string[];
+  setCart?: (cart: string[]) => void;
+}
 
 const initialOrganicProducts = [
-  { id: 1, name: 'Certified Organic Turmeric', farmer: 'Prakriti Farms', location: 'Kerala, India', cert: 'India Organic, USDA', price: 1200, unit: '10kg', image: 'https://images.unsplash.com/photo-1615485925600-97237c4fc1ec?auto=format&fit=crop&w=400&q=80', sellerId: 'admin' },
-  { id: 2, name: 'Pesticide-Free Honey', farmer: 'WildBee Collective', location: 'Himachal Pradesh', cert: 'India Organic', price: 850, unit: '1kg', image: organicHoneyImg, sellerId: 'admin' },
-  { id: 3, name: 'Heirloom Tomatoes', farmer: 'Earth Roots', location: 'Maharashtra', cert: 'PGS-India', price: 150, unit: '1kg', image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80', sellerId: 'admin' },
+  { id: 'organic-1', name: 'Certified Organic Turmeric', farmer: 'Prakriti Farms', location: 'Kerala, India', cert: 'India Organic, USDA', price: 1200, unit: '10kg', image: 'https://images.unsplash.com/photo-1615485925600-97237c4fc1ec?auto=format&fit=crop&w=400&q=80', sellerId: 'admin' },
+  { id: 'organic-2', name: 'Pesticide-Free Honey', farmer: 'WildBee Collective', location: 'Himachal Pradesh', cert: 'India Organic', price: 850, unit: '1kg', image: organicHoneyImg, sellerId: 'admin' },
+  { id: 'organic-3', name: 'Heirloom Tomatoes', farmer: 'Earth Roots', location: 'Maharashtra', cert: 'PGS-India', price: 150, unit: '1kg', image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80', sellerId: 'admin' },
 ];
 
-export function OrganicMarket({ user }: { user?: User }) {
+export function OrganicMarket({ user, onNavigate, cart = [], setCart }: OrganicMarketProps) {
   const [productList, setProductList] = useState(() => {
     const saved = localStorage.getItem('organicProducts');
     if (saved) {
       let parsed = JSON.parse(saved);
-      // Ensure honey image is properly restored if missing
       parsed = parsed.map((p: any) => 
-        p.id === 2 ? { ...p, image: organicHoneyImg } : p
+        p.id === 'organic-2' || p.id === 2 ? { ...p, image: organicHoneyImg } : p
       );
       return parsed;
     }
@@ -33,6 +39,22 @@ export function OrganicMarket({ user }: { user?: User }) {
   useEffect(() => {
     localStorage.setItem('organicProducts', JSON.stringify(productList));
   }, [productList]);
+
+  const handleAddToCart = (productId: string, productName: string) => {
+    if (setCart) {
+      setCart([...cart, productId]);
+      alert(`Added "${productName}" to cart!`);
+    }
+  };
+
+  const handleBuyNow = (productId: string, productName: string) => {
+    if (setCart) {
+      setCart([...cart, productId]);
+    }
+    if (onNavigate) {
+      onNavigate('cart');
+    }
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -243,14 +265,26 @@ export function OrganicMarket({ user }: { user?: User }) {
               <h3 className="text-xl font-bold text-slate-800 mb-1">{p.name}</h3>
               <p className="text-sm text-green-700 font-medium mb-4">Grown by {p.farmer}</p>
               
-              <div className="mt-auto flex items-end justify-between pt-4 border-t border-slate-100">
+              <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-100 gap-2">
                 <div>
                   <span className="text-2xl font-bold text-slate-800">₹{p.price}</span>
                   <span className="text-sm text-slate-500">/{p.unit}</span>
                 </div>
-                <button className="px-5 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition-colors shadow-sm">
-                  Buy Now
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleAddToCart(String(p.id), p.name)}
+                    className="p-2.5 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 text-sm font-semibold rounded-xl transition-colors shadow-sm flex items-center gap-1"
+                    title="Add to Cart"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleBuyNow(String(p.id), p.name)}
+                    className="px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors shadow-sm"
+                  >
+                    Buy Now
+                  </button>
+                </div>
               </div>
             </div>
           </div>

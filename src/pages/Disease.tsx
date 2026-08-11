@@ -3,6 +3,7 @@ import { UploadCloud, CheckCircle2, ShieldAlert, Store, Loader2 } from 'lucide-r
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../lib/firebase';
+import { apiClient } from '../lib/apiClient';
 
 export function Disease() {
   const [dragActive, setDragActive] = useState(false);
@@ -22,23 +23,15 @@ export function Disease() {
       reader.readAsDataURL(file);
       reader.onload = async () => {
         const base64 = reader.result as string;
-        const token = await auth.currentUser?.getIdToken();
-        const res = await fetch('/api/disease/analyze', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ imageBase64: base64 })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
+        try {
+          const data = await apiClient.post('/api/disease/analyze', { imageBase64: base64 });
           setResult(data);
-        } else {
-          console.error('API error');
+        } catch (err: any) {
+          console.error('Disease analysis error:', err);
+          alert(err.message || 'Failed to analyze image.');
+        } finally {
+          setAnalyzing(false);
         }
-        setAnalyzing(false);
       };
     } catch (err) {
       console.error(err);

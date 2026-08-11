@@ -27,7 +27,7 @@ export const getAvailability = async (req: Request, res: Response, next: NextFun
 
 export const createRental = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = createRentalSchema.parse(req.body);
+    const data = createRentalSchema.parse(req.body) as { equipmentId: string; startDate: string; endDate: string };
     const rental = await rentalService.createRental(req.user.id, data);
     res.status(201).json({ rental });
   } catch (err) { next(err); }
