@@ -425,10 +425,14 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.join(process.cwd(), "dist/client")));
+    const clientPath = fs.existsSync(path.join(process.cwd(), "dist/client/index.html"))
+      ? path.join(process.cwd(), "dist/client")
+      : path.join(process.cwd(), "dist");
+
+    app.use(express.static(clientPath));
     app.get("*", (req, res, next) => {
       if (req.path.startsWith("/api")) return next();
-      res.sendFile(path.join(process.cwd(), "dist/client/index.html"));
+      res.sendFile(path.join(clientPath, "index.html"));
     });
   }
 
