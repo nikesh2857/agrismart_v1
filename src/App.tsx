@@ -184,7 +184,7 @@ export default function App() {
       case 'ai-assistant': return <AIAssistant onNavigate={setCurrentPage} />;
       case 'rental': return <Rental user={user!} />;
       case 'profile': return <UserProfile user={user!} onUpdateUser={(updatedUser) => setUser(prev => prev ? { ...prev, ...updatedUser } : null)} />;
-      case 'cart': return <Cart onNavigate={setCurrentPage} cart={cart} setCart={setCart} />;
+      case 'cart': return <Cart onNavigate={setCurrentPage} cart={cart} setCart={setCart} user={user!} />;
       case 'manage-tasks': return <ManageTasks onNavigate={setCurrentPage} user={user!} />;
       case 'plot-map': return <PlotMap onNavigate={setCurrentPage} />;
       case 'market-rates': return <MarketRates onNavigate={setCurrentPage} />;

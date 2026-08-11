@@ -103,12 +103,16 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const getCartItemId = (item: any): string => {
+    if (!item) return '';
+    if (typeof item === 'string' || typeof item === 'number') return String(item);
+    if (typeof item === 'object') return String(item.id || item.productId || '');
+    return '';
+  };
+
   const getCartQuantity = (id: string) => {
     const safeCart = Array.isArray(cart) ? cart : [];
-    return safeCart.filter(item => {
-      const itemStr = typeof item === 'object' && item !== null ? String((item as any).id || '') : String(item);
-      return itemStr === String(id);
-    }).length;
+    return safeCart.filter(item => getCartItemId(item) === String(id)).length;
   };
 
   const handleAddToCart = (id: string) => {
@@ -121,8 +125,8 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
     const targetId = String(id);
     let removed = false;
     const nextCart = safeCart.filter(item => {
-      const itemStr = typeof item === 'object' && item !== null ? String((item as any).id || '') : String(item);
-      if (!removed && itemStr === targetId) {
+      const idStr = getCartItemId(item);
+      if (!removed && idStr === targetId) {
         removed = true;
         return false;
       }

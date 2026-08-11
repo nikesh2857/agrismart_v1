@@ -20,6 +20,7 @@ interface CartProps {
   onNavigate: (page: PageType) => void;
   cart: string[];
   setCart: (cart: string[]) => void;
+  user?: any;
 }
 
 const staticProducts: Product[] = [
@@ -32,7 +33,16 @@ const staticProducts: Product[] = [
   { id: 'seed-equipment-combine-harvest', name: 'Mahindra 575 DI Tractor', price: 1500, unit: 'Day', stock: 5, sellerId: 'equipment', seller: { name: 'AgriRentals' }, image: mahindraTractorImg }
 ];
 
-export function Cart({ onNavigate, cart, setCart }: CartProps) {
+const getCartItemId = (item: any): string => {
+  if (!item) return '';
+  if (typeof item === 'string' || typeof item === 'number') return String(item);
+  if (typeof item === 'object') {
+    return String(item.id || item.productId || '');
+  }
+  return '';
+};
+
+export function Cart({ onNavigate, cart, setCart, user }: CartProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
@@ -79,12 +89,14 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
 
   const safeCart = Array.isArray(cart) ? cart : [];
 
-  // Group quantity counts by product ID
+  // Group quantity counts by product ID safely
   const itemQuantities: { [id: string]: number } = {};
   safeCart.forEach(item => {
-    const idStr = typeof item === 'object' && item !== null ? String((item as any).id || '') : String(item);
-    if (idStr) {
-      itemQuantities[idStr] = (itemQuantities[idStr] || 0) + (typeof item === 'object' && (item as any).quantity ? Number((item as any).quantity) : 1);
+    const idStr = getCartItemId(item);
+    if (idStr && idStr !== '[object Object]') {
+      const rawQty = typeof item === 'object' && item !== null ? Number((item as any).quantity) : 1;
+      const qty = !isNaN(rawQty) && rawQty > 0 ? rawQty : 1;
+      itemQuantities[idStr] = (itemQuantities[idStr] || 0) + qty;
     }
   });
 
@@ -123,15 +135,15 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
   const handleIncreaseQuantity = (productId: string, stock: number = 999) => {
     const currentQty = itemQuantities[productId] || 0;
     if (currentQty >= stock) return;
-    setCart([...safeCart, productId]);
+    setCart([...safeCart, String(productId)]);
   };
 
   const handleDecreaseQuantity = (productId: string) => {
     const targetId = String(productId);
     let removed = false;
     const nextCart = safeCart.filter(item => {
-      const itemStr = typeof item === 'object' && item !== null ? String((item as any).id || '') : String(item);
-      if (!removed && itemStr === targetId) {
+      const idStr = getCartItemId(item);
+      if (!removed && idStr === targetId) {
         removed = true;
         return false;
       }
@@ -142,10 +154,7 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
 
   const removeFromCart = (id: string) => {
     if (typeof setCart === 'function') {
-      setCart(safeCart.filter(itemId => {
-        const itemStr = typeof itemId === 'object' && itemId !== null ? String((itemId as any).id || '') : String(itemId);
-        return itemStr !== String(id);
-      }));
+      setCart(safeCart.filter(item => getCartItemId(item) !== String(id)));
     }
   };
 
