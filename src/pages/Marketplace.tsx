@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Filter, ShoppingCart, Star, Plus, Trash2, ArrowLeft, UploadCloud, Loader2, Phone, Mail, PackageCheck, Clock, UserCheck, ShoppingBag, MapPin } from 'lucide-react';
+import { Search, Filter, ShoppingCart, Star, Plus, Minus, Trash2, ArrowLeft, UploadCloud, Loader2, Phone, Mail, PackageCheck, Clock, UserCheck, ShoppingBag, MapPin } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { PageType, User } from '../types';
 import { apiClient } from '../lib/apiClient';
@@ -8,14 +8,13 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  rating: number;
+  unit: string;
   stock: number;
-  sellerId: string;
-  seller: { name: string; email?: string; phone?: string };
+  image: string;
+  sellerId?: string;
+  seller?: { name: string };
   category?: string;
-  // UI fields mocked
-  unit?: string;
-  image?: string;
-  rating?: number;
 }
 
 interface MarketplaceProps {
@@ -58,14 +57,7 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
     if (n.includes('pesticide') || n.includes('chlorpyrifos') || n.includes('neem')) return 'https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?auto=format&fit=crop&q=80&w=600';
     if (n.includes('hoe') || n.includes('sprayer') || n.includes('tool')) return 'https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&q=80&w=600';
     if (n.includes('tractor') || n.includes('tiller') || n.includes('harvester')) return 'https://images.unsplash.com/photo-1530267981600-09880ad635fa?auto=format&fit=crop&q=80&w=600';
-
-    const cat = (category || '').toUpperCase();
-    if (cat === 'SEEDS') return 'https://images.unsplash.com/photo-1530507629858-e4977d30e9e0?auto=format&fit=crop&q=80&w=600';
-    if (cat === 'FERTILIZERS') return 'https://images.unsplash.com/photo-1628352081506-83c43123ed6d?auto=format&fit=crop&q=80&w=600';
-    if (cat === 'PESTICIDES') return 'https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?auto=format&fit=crop&q=80&w=600';
-    if (cat === 'TOOLS' || cat === 'MACHINERY') return 'https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&q=80&w=600';
-
-    return 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&q=80&w=600';
+    return 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600';
   };
 
   const loadProducts = async () => {
@@ -73,10 +65,16 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
       setLoading(true);
       const data = await apiClient.get<{ products: any[] }>('/api/products');
       const mapped = data.products.map(p => ({
-        ...p,
-        unit: 'Quintal', // Mock unit
-        rating: 4.5,
-        image: p.imageUrl || getProductFallbackImage(p.name, p.category)
+        id: p.id,
+        name: p.name,
+        price: Number(p.price) || 0,
+        rating: p.rating || 4.5,
+        unit: 'Quintal',
+        stock: p.stock || 0,
+        image: p.imageUrl || getProductFallbackImage(p.name, p.category),
+        sellerId: p.sellerId,
+        seller: p.seller || { name: 'Local Farmer' },
+        category: p.category
       }));
       setProductList(mapped);
     } catch (err) {
@@ -89,9 +87,8 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
   const loadOrders = async () => {
     try {
       setLoadingOrders(true);
-      const data = await apiClient.get<any>('/api/orders');
-      const list = Array.isArray(data) ? data : (data?.orders || []);
-      setOrderList(list);
+      const data = await apiClient.get<{ orders: any[] }>('/api/orders');
+      setOrderList(data?.orders || []);
     } catch (err) {
       console.error('Failed to load orders:', err);
     } finally {
@@ -106,8 +103,40 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const getCartQuantity = (id: string) => {
+    const safeCart = Array.isArray(cart) ? cart : [];
+    return safeCart.filter(item => {
+      const itemStr = typeof item === 'object' && item !== null ? String((item as any).id || '') : String(item);
+      return itemStr === String(id);
+    }).length;
+  };
+
+  const handleAddToCart = (id: string) => {
+    const safeCart = Array.isArray(cart) ? cart : [];
+    setCart([...safeCart, String(id)]);
+  };
+
+  const handleDecreaseQuantity = (id: string) => {
+    const safeCart = Array.isArray(cart) ? cart : [];
+    const targetId = String(id);
+    let removed = false;
+    const nextCart = safeCart.filter(item => {
+      const itemStr = typeof item === 'object' && item !== null ? String((item as any).id || '') : String(item);
+      if (!removed && itemStr === targetId) {
+        removed = true;
+        return false;
+      }
+      return true;
+    });
+    setCart(nextCart);
+  };
+
   const toggleCart = (id: string) => {
-    setCart(cart.includes(id) ? cart.filter(item => item !== id) : [...cart, id]);
+    if (getCartQuantity(id) > 0) {
+      handleDecreaseQuantity(id);
+    } else {
+      handleAddToCart(id);
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -396,17 +425,44 @@ export function Marketplace({ onNavigate, cart, setCart, user }: MarketplaceProp
                         </div>
                         <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-md">Stock: {product.stock}</span>
                       </div>
-                      <button 
-                        onClick={() => toggleCart(product.id.toString())}
-                        className={cn(
-                          "w-full py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2",
-                          cart.includes(product.id.toString()) 
-                            ? "bg-green-100 text-green-700 hover:bg-green-200" 
-                            : "bg-slate-900 text-white hover:bg-slate-800"
-                        )}
-                      >
-                        {cart.includes(product.id.toString()) ? 'Added to Cart' : 'Add to Cart'}
-                      </button>
+                      {(() => {
+                        const pId = product.id.toString();
+                        const qty = getCartQuantity(pId);
+
+                        if (qty === 0) {
+                          return (
+                            <button 
+                              onClick={() => handleAddToCart(pId)}
+                              className="w-full py-2.5 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <ShoppingCart className="w-4 h-4" /> Add to Cart
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl p-1.5">
+                            <button 
+                              onClick={() => handleDecreaseQuantity(pId)}
+                              className="w-8 h-8 rounded-lg bg-white text-green-700 font-bold flex items-center justify-center hover:bg-green-100 transition-colors shadow-sm"
+                              title="Decrease quantity"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <div className="text-center px-2">
+                              <span className="font-bold text-green-800 text-xs sm:text-sm block">{qty} in Cart</span>
+                            </div>
+                            <button 
+                              onClick={() => handleAddToCart(pId)}
+                              disabled={qty >= (product.stock || 999)}
+                              className="w-8 h-8 rounded-lg bg-green-600 text-white font-bold flex items-center justify-center hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors shadow-sm"
+                              title="Increase quantity"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

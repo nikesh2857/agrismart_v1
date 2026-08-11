@@ -41,29 +41,8 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
+        setLoading(true);
         let allProducts = [...staticProducts];
-        
-        // Include custom organic products from localStorage
-        const savedOrganic = localStorage.getItem('organicProducts');
-        if (savedOrganic) {
-          try {
-            const parsed = JSON.parse(savedOrganic);
-            parsed.forEach((p: any) => {
-              if (!allProducts.some(existing => String(existing.id) === String(p.id))) {
-                allProducts.push({
-                  id: String(p.id),
-                  name: p.name,
-                  price: p.price,
-                  unit: p.unit || '1kg',
-                  stock: 50,
-                  sellerId: p.sellerId || 'admin',
-                  seller: { name: p.farmer || 'Organic Farm' },
-                  image: String(p.id) === 'organic-2' || String(p.id) === '2' ? organicHoneyImg : p.image
-                });
-              }
-            });
-          } catch (e) {}
-        }
 
         // Fetch DB products from backend
         try {
@@ -74,17 +53,19 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
                 allProducts.push({
                   id: String(p.id),
                   name: p.name,
-                  price: p.price,
+                  price: Number(p.price) || 0,
                   unit: 'Quintal',
                   stock: p.stock || 50,
                   sellerId: p.sellerId || 'seller',
                   seller: p.seller || { name: 'Local Farmer' },
-                  image: 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600'
+                  image: p.imageUrl || 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600'
                 });
               }
             });
           }
-        } catch (e) {}
+        } catch (e) {
+          console.error('Failed to load DB products for cart:', e);
+        }
 
         setProducts(allProducts);
       } catch (err) {
@@ -97,11 +78,24 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
   }, []);
 
   const safeCart = Array.isArray(cart) ? cart : [];
-  const cartItemIds = safeCart.map(item => 
-    typeof item === 'object' && item !== null ? String((item as any).id || '') : String(item)
-  ).filter(Boolean);
 
-  let matchedItems = products.filter(p => p && p.id && cartItemIds.includes(String(p.id)));
+  // Group quantity counts by product ID
+  const itemQuantities: { [id: string]: number } = {};
+  safeCart.forEach(item => {
+    const idStr = typeof item === 'object' && item !== null ? String((item as any).id || '') : String(item);
+    if (idStr) {
+      itemQuantities[idStr] = (itemQuantities[idStr] || 0) + (typeof item === 'object' && (item as any).quantity ? Number((item as any).quantity) : 1);
+    }
+  });
+
+  const cartItemIds = Object.keys(itemQuantities);
+
+  let matchedItems = products
+    .filter(p => p && p.id && cartItemIds.includes(String(p.id)))
+    .map(p => ({
+      ...p,
+      quantity: itemQuantities[String(p.id)] || 1
+    }));
 
   // For any cart item ID not matched in catalog, generate safe product fallback object
   cartItemIds.forEach(id => {
@@ -114,15 +108,37 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
         stock: 10,
         sellerId: 'vendor',
         seller: { name: 'Verified Agricultural Supplier' },
-        image: 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600'
+        image: 'https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?auto=format&fit=crop&q=80&w=600',
+        quantity: itemQuantities[String(id)] || 1
       });
     }
   });
 
   const cartItems = matchedItems;
-  const subtotal = cartItems.reduce((acc, item) => acc + (Number(item?.price) || 0), 0);
+  const totalUnits = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
+  const subtotal = cartItems.reduce((acc, item) => acc + (Number(item?.price) || 0) * (item.quantity || 1), 0);
   const tax = subtotal * 0.05;
   const total = subtotal + tax;
+
+  const handleIncreaseQuantity = (productId: string, stock: number = 999) => {
+    const currentQty = itemQuantities[productId] || 0;
+    if (currentQty >= stock) return;
+    setCart([...safeCart, productId]);
+  };
+
+  const handleDecreaseQuantity = (productId: string) => {
+    const targetId = String(productId);
+    let removed = false;
+    const nextCart = safeCart.filter(item => {
+      const itemStr = typeof item === 'object' && item !== null ? String((item as any).id || '') : String(item);
+      if (!removed && itemStr === targetId) {
+        removed = true;
+        return false;
+      }
+      return true;
+    });
+    setCart(nextCart);
+  };
 
   const removeFromCart = (id: string) => {
     if (typeof setCart === 'function') {
@@ -133,8 +149,8 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
     }
   };
 
-  const [contactPhone, setContactPhone] = useState(user.phone || '');
-  const [deliveryAddress, setDeliveryAddress] = useState((user as any).place || '');
+  const [contactPhone, setContactPhone] = useState(user?.phone || '');
+  const [deliveryAddress, setDeliveryAddress] = useState(user?.place || '');
 
   const handleCheckout = async () => {
     if (cartItems.length === 0) return;
@@ -148,7 +164,7 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
       
       const orderItems = cartItems.map(item => ({
         productId: item.id,
-        quantity: 1, // Defaulting to 1 for MVP cart
+        quantity: item.quantity || 1,
         price: item.price
       }));
 
@@ -160,9 +176,8 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
       });
 
       setSuccess(true);
-      setCart([]); // Clear cart
+      setCart([]);
       
-      // Auto redirect after 3s
       setTimeout(() => {
         onNavigate('marketplace');
       }, 3000);
@@ -184,7 +199,7 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
         >
           <ArrowLeft className="w-5 h-5 text-slate-600" />
         </button>
-        <h2 className="text-2xl font-bold text-slate-800">Your Cart</h2>
+        <h2 className="text-2xl font-bold text-slate-800">Your Cart ({totalUnits} items)</h2>
       </div>
 
       {loading ? (
@@ -218,18 +233,49 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
             {cartItems.map(item => (
-              <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0">
+              <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-wrap items-center gap-4">
+                <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0">
                   <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-slate-800 text-lg">{item.name}</h3>
-                  <p className="text-sm text-slate-500 mb-1">{item.seller?.name || 'Local Farm'}</p>
-                  <p className="font-bold text-green-700">₹{item.price} <span className="text-sm font-normal text-slate-500">/{item.unit}</span></p>
+                <div className="flex-1 min-w-[140px]">
+                  <h3 className="font-bold text-slate-800 text-base leading-snug">{item.name}</h3>
+                  <p className="text-xs text-slate-500 mb-1">{item.seller?.name || 'Local Farm'}</p>
+                  <p className="font-bold text-green-700 text-sm">₹{item.price} <span className="text-xs font-normal text-slate-500">/{item.unit || 'Unit'}</span></p>
                 </div>
+
+                {/* Quantity Controls */}
+                <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                  <button 
+                    onClick={() => handleDecreaseQuantity(item.id)}
+                    className="w-7 h-7 rounded-lg bg-white shadow-sm flex items-center justify-center font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                    title="Decrease quantity"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  
+                  <span className="font-bold text-slate-800 text-sm px-2 min-w-[24px] text-center">
+                    {item.quantity}
+                  </span>
+
+                  <button 
+                    onClick={() => handleIncreaseQuantity(item.id, item.stock)}
+                    disabled={(item.quantity || 1) >= item.stock}
+                    className="w-7 h-7 rounded-lg bg-white shadow-sm flex items-center justify-center font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Increase quantity"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Item Subtotal */}
+                <div className="text-right min-w-[80px]">
+                  <span className="text-[10px] text-slate-400 font-medium block uppercase">Total</span>
+                  <span className="font-bold text-slate-800 text-sm">₹{(Number(item.price) * (item.quantity || 1)).toFixed(2)}</span>
+                </div>
+
                 <button 
                   onClick={() => removeFromCart(item.id)}
-                  className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                   aria-label="Remove item"
                 >
                   <Trash2 className="w-5 h-5" />
@@ -242,7 +288,7 @@ export function Cart({ onNavigate, cart, setCart }: CartProps) {
             <h3 className="text-lg font-bold text-slate-800 mb-6">Order Summary</h3>
             <div className="space-y-4 mb-6 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-500">Subtotal ({cartItems.length} items)</span>
+                <span className="text-slate-500">Subtotal ({totalUnits} items)</span>
                 <span className="font-medium text-slate-800">₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
