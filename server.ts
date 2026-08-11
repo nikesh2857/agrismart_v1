@@ -46,7 +46,7 @@ async function startServer() {
   const app = express();
   const server = http.createServer(app);
   const wss = new WebSocketServer({ noServer: true });
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   server.on('upgrade', (request, socket, head) => {
     const pathname = request.url ? request.url.split('?')[0] : '';
@@ -65,7 +65,7 @@ async function startServer() {
     contentSecurityPolicy: false, // Vite needs inline scripts in dev
   }));
   app.use(cors({
-    origin: process.env.APP_URL || 'http://localhost:3000',
+    origin: true,
     credentials: true,
   }));
   app.use(morgan('dev'));
@@ -439,8 +439,8 @@ async function startServer() {
   // Global Error Handler
   app.use(errorHandler);
 
-  server.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  server.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 
   // Graceful shutdown

@@ -30,7 +30,7 @@ Authorization: Bearer <firebase_id_token>
     },
     servers: [
       { url: 'http://localhost:3000', description: 'Local Development' },
-      { url: process.env.APP_URL || 'https://your-production-url.com', description: 'Production' },
+      { url: process.env.APP_URL || 'https://agrismart-v1.onrender.com', description: 'Production' },
     ],
     components: {
       securitySchemes: {
